@@ -142,7 +142,7 @@ h3 { font-family: var(--body); font-weight: 800; font-size: 13px; letter-spacing
       <button id="btn-check" class="ghost">Sensor check</button>
     </div>
     <p class="fine" id="host-note"></p>
-    <p class="fine build">v0.1.0 · 2026-11-03</p>
+    <p class="fine build">v0.3.0 · 2026-11-03 · <span id="game-count"></span> games</p>
   </div>
 </section>
 
@@ -4940,6 +4940,7 @@ const UI = (() => {
     $('btn-quit').addEventListener('click', () => { Engine.paused = null; Engine.quit(); best(); chips(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
     buildPractice(); chips(); best(); quietLabel(); hostNote();
+    $('game-count').textContent = Games.list.length;
   }
 
   function pause() {
