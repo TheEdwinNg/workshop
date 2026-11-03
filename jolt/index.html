@@ -97,10 +97,6 @@ button:focus-visible { outline: 3px solid var(--pop); outline-offset: 3px; }
 
 .score { display: flex; flex-direction: column; align-items: center; font-family: var(--display); font-size: min(112px, 17vw); line-height: 1; color: var(--sun); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 6px 0 var(--ink); font-variant-numeric: tabular-nums; }
 .score small { font-family: var(--body); font-size: 15px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--paper); -webkit-text-stroke: 0; text-shadow: none; }
-.snaps { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.snaps figure { margin: 0; display: flex; flex-direction: column; gap: 4px; align-items: center; transform: rotate(var(--r, 0deg)); }
-.snaps img { width: 92px; height: 69px; object-fit: cover; border: 4px solid var(--paper); border-radius: 4px; box-shadow: 0 4px 0 var(--ink); }
-.snaps figcaption { font-size: 11px; font-weight: 800; color: var(--paper); letter-spacing: .06em; }
 
 .meters { width: 100%; display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin: 0; text-align: left; font-variant-numeric: tabular-nums; }
 .meters dt { font-weight: 800; font-size: 13px; color: var(--sun); }
@@ -188,8 +184,6 @@ h3 { font-family: var(--body); font-weight: 800; font-size: 13px; letter-spacing
     <p id="over-sub" class="fine"></p>
     <p id="over-best" class="best"></p>
     <ol id="over-log" class="runlog" aria-label="This run, game by game"></ol>
-    <div id="snaps" class="snaps" hidden></div>
-    <p id="snaps-note" class="fine" hidden>Snapped mid-game. These stay on this phone and vanish when you close the page.</p>
     <div class="row">
       <button id="btn-replay" class="big">Again</button>
       <button id="btn-menu" class="ghost">Menu</button>
@@ -496,16 +490,6 @@ const Hub = (() => {
       };
       return f;
     },
-    // Front-camera photo for the game-over reel (mirrored, like a selfie). Stays in memory only.
-    snap() {
-      if (!video || video.readyState < 2) return null;
-      try {
-        const c = document.createElement('canvas'); c.width = 184; c.height = 138;
-        const x = c.getContext('2d'); x.translate(184, 0); x.scale(-1, 1);
-        x.drawImage(video, 0, 0, 184, 138);
-        return c.toDataURL('image/jpeg', 0.75);
-      } catch (e) { return null; }
-    },
     clearInput() { st.pointers.clear(); st.taps.length = 0; },
   };
 })();
@@ -748,7 +732,7 @@ const Engine = {
   startRun(practice = null) {
     this.run = {
       lives: CFG.lives, score: 0, cycle: 0, idx: 0, level: practice ? practice.level : 1, bpm: CFG.tiers[0],
-      bag: [], last: null, sinceCam: 9, snaps: [], practice, played: 0,
+      bag: [], last: null, sinceCam: 9, practice, played: 0,
       points: 0, streak: 0, bestStreak: 0, lastPts: 0, log: [],
     };
     Hub.clearInput();
@@ -846,7 +830,10 @@ const Engine = {
       if (bi > p.lastBeat) {
         p.lastBeat = bi;
         Sound.beat(bi, 'game', p.spb);
-        if (inst.status === 'playing' && bi >= G.beats - 4 && bi < G.beats) { Sound.sfx('tick'); U.buzz(12); }
+        if (inst.status === 'playing' && bi >= G.beats - 4 && bi < G.beats) {
+          // Countdown tick + buzz, except while the mic is listening: the phone would hear its own speaker and motor.
+          if (!(G.sensor === 'mic' && this.mode === 'sensor')) { Sound.sfx('tick'); U.buzz(12); }
+        }
       }
       inst.update(dt, f, B);
       if (inst.status === 'playing' && B.beat >= G.beats) inst.status = resolveTimeout(G, inst);
@@ -859,13 +846,6 @@ const Engine = {
       if (this.flash) this.flash.t += dt;
       if (B.beat >= p.endAt) this.enterInter(inst.status);
     }
-  },
-
-  // The front-camera photo moment (Heads Up! lesson: the funny bit is your face mid-game).
-  snap(label) {
-    const r = this.run;
-    if (!r || r.practice || r.snaps.length >= 6 || FLAGS.mock || !Hub.camReady()) return;
-    const url = Hub.snap(); if (url) r.snaps.push({ url, label });
   },
 
   gameOver() {
@@ -907,6 +887,8 @@ function mash(ctx, B) {
   if (B.t >= s.next) { s.next = B.t + 0.08 + r() * 0.08; out.taps.push({ id: 900 + Math.floor(B.t * 100), x: r() * STAGE_W, y: r() * STAGE_H }); }
   out.tilt = { x: Math.sin(B.t * 7) * 25, y: Math.cos(B.t * 5) * 15 };
   out.lin = r() * 4;
+  out.mic = { rms: r() < 0.5 ? 0.01 + r() * 0.15 : 0.008 }; // noisy room, random bursts
+  out.cam = { lum: 0.3 + r() * 0.4, motion: r() * 0.2 };
   return out;
 }
 
@@ -1394,7 +1376,6 @@ Games.add({
 // BLOW! — blow out the birthday candles, one after another. Each candle needs a short sustained
 // blow, so it's a real breath, not a puff (the complaint about Touched!'s mic games).
 // Level 3: stop blowing too long and the last candle relights. Touch version: tap each flame.
-// The front camera snaps your puffed cheeks for the game-over reel.
 Games.add({
   id: 'blow', verb: 'BLOW!', sensor: 'mic', look: '#1E2152',
   create({ level, mode }) {
@@ -1402,7 +1383,7 @@ Games.add({
     const x0 = 180 - (n - 1) * 22;
     const cs = Array.from({ length: n }, (_, i) => ({ x: x0 + i * 44, y: 296 + (i % 2) * 12, out: false, outT: 0 }));
     return {
-      status: 'playing', bg: '#1E2152', t: 0, cs, prog: 0, gap: 0, snapped: false, blowing: 0, mode, level,
+      status: 'playing', bg: '#1E2152', t: 0, cs, prog: 0, gap: 0, blowing: 0, mode, level,
       update(dt, f) {
         this.t += dt;
         for (const c of cs) if (c.out) c.outT += dt;
@@ -1413,7 +1394,6 @@ Games.add({
           this.blowing = U.lerp(this.blowing, on ? Math.min(1, f.mic.rms / (thr * 2)) : 0, Math.min(1, dt * 12));
           if (on) {
             this.gap = 0; this.prog += dt;
-            if (!this.snapped && this.prog > 0.12) { this.snapped = true; Engine.snap('BLOW!'); }
             if (this.prog >= TUNE.blowHold) { const c = cs.find((q) => !q.out); c.out = true; c.outT = 0; this.prog = 0; Sound.sfx('puff'); }
           } else {
             this.prog = Math.max(0, this.prog - dt * 2); this.gap += dt;
@@ -3094,6 +3074,1741 @@ Games.add({
   },
 });
 
+/* ---- 75-g-roll.js ---- */
+// ROLL! — a googly-eyed marble in a wooden tray: tilt the phone to roll it into the flagged hole.
+// L2/L3 add holes with something hungry living in them (fall in = lost); L3 shrinks the goal.
+// Touch version: drag from wherever your finger lands, like a joystick; the offset is the tilt.
+const ROLL_MAX_TILT = 35;   // degrees: never ask for more
+const ROLL_ACC = 900;       // px/s² at 90° (so ~516 px/s² at the 35° cap)
+const ROLL_FRICTION = 0.9;  // 1/s velocity decay
+const ROLL_TOUCH = 0.35;    // degrees of virtual tilt per px of drag (100 px = full tilt)
+const ROLL_R = 15;          // marble radius
+const ROLL_BOARD = { x0: 34, y0: 142, x1: 326, y1: 528 };
+
+function rollSegDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1;
+  const k = U.clamp(((px - ax) * dx + (py - ay) * dy) / L, 0, 1);
+  return Math.hypot(px - (ax + dx * k), py - (ay + dy * k));
+}
+
+Games.add({
+  id: 'roll', verb: 'ROLL!', sensor: 'tilt', beats: 12, look: '#C2304A',
+  create({ level, rng, mode }) {
+    const start = { x: 80 + rng() * 200, y: 482 };
+    const goal = { x: 80 + rng() * 200, y: 202 + rng() * 40, r: [36, 31, 25][level - 1] };
+    const decoys = [], DR = 28;
+    for (let i = 0; i < level - 1; i++) {
+      for (let k = 0; k < 400; k++) {
+        const p = { x: 72 + rng() * 216, y: 170 + rng() * 330, r: DR, seed: rng() * 6 };
+        // Off the straight line to the goal (a clean roll never brushes it), clear of the goal, start and each other.
+        if (rollSegDist(p.x, p.y, start.x, start.y, goal.x, goal.y) < DR + 14) continue;
+        if (U.dist(p.x, p.y, goal.x, goal.y) < goal.r + DR + 26) continue;
+        if (U.dist(p.x, p.y, start.x, start.y) < DR + ROLL_R + 40) continue;
+        if (decoys.some((q) => U.dist(p.x, p.y, q.x, q.y) < DR * 2 + 22)) continue;
+        decoys.push(p); break;
+      }
+    }
+    return {
+      status: 'playing', bg: '#C2304A', t: 0, end: 0, mode, goal, decoys,
+      m: { x: start.x, y: start.y, vx: 0, vy: 0, roll: 0 },
+      tilt: { x: 0, y: 0 }, drag: null, finger: null, into: null, confetti: null, bump: 0,
+      update(dt, f) {
+        this.t += dt; this.bump = Math.max(0, this.bump - dt);
+        const m = this.m;
+        if (this.status !== 'playing') {
+          this.end += dt;
+          if (this.into) { const k = Math.min(1, dt * 14); m.x += (this.into.x - m.x) * k; m.y += (this.into.y - m.y) * k; }
+          else { const k = Math.exp(-3 * dt); m.vx *= k; m.vy *= k; m.x += m.vx * dt; m.y += m.vy * dt; }
+          this.tilt.x *= 0.9; this.tilt.y *= 0.9;
+          return;
+        }
+        let tx = 0, ty = 0;
+        if (mode === 'sensor') { tx = f.tilt.x; ty = f.tilt.y; }
+        else {
+          const p = this.drag ? f.pointers.find((q) => q.id === this.drag.id) : null;
+          if (!p) { this.drag = null; this.finger = null; const n = f.pointers[0]; if (n) { this.drag = { id: n.id, sx: n.x, sy: n.y }; this.finger = { x: n.x, y: n.y }; } }
+          else { tx = (p.x - this.drag.sx) * ROLL_TOUCH; ty = (p.y - this.drag.sy) * ROLL_TOUCH; this.finger = { x: p.x, y: p.y }; }
+        }
+        tx = U.clamp(tx, -ROLL_MAX_TILT, ROLL_MAX_TILT); ty = U.clamp(ty, -ROLL_MAX_TILT, ROLL_MAX_TILT);
+        this.tilt = { x: tx, y: ty };
+        const ax = ROLL_ACC * Math.sin(tx * Math.PI / 180), ay = ROLL_ACC * Math.sin(ty * Math.PI / 180);
+        // Substeps so a fast marble can't hop over a small hole at 30 fps.
+        const n = Math.max(1, Math.ceil(Math.hypot(m.vx, m.vy) * dt / 6)), h = dt / n, fr = Math.exp(-ROLL_FRICTION * h);
+        const b = ROLL_BOARD, R = ROLL_R;
+        for (let i = 0; i < n; i++) {
+          m.vx = (m.vx + ax * h) * fr; m.vy = (m.vy + ay * h) * fr;
+          m.x += m.vx * h; m.y += m.vy * h;
+          const hit = (v) => { if (Math.abs(v) > 160 && this.bump <= 0) { Sound.sfx('blink'); this.bump = 0.12; } return -v * 0.45; };
+          if (m.x < b.x0 + R) { m.x = b.x0 + R; if (m.vx < 0) m.vx = hit(m.vx); }
+          if (m.x > b.x1 - R) { m.x = b.x1 - R; if (m.vx > 0) m.vx = hit(m.vx); }
+          if (m.y < b.y0 + R) { m.y = b.y0 + R; if (m.vy < 0) m.vy = hit(m.vy); }
+          if (m.y > b.y1 - R) { m.y = b.y1 - R; if (m.vy > 0) m.vy = hit(m.vy); }
+          if (U.dist(m.x, m.y, goal.x, goal.y) < goal.r - 4) {
+            this.status = 'won'; this.into = goal; Sound.sfx('pop');
+            this.confetti = Array.from({ length: 18 }, () => ({ a: Math.random() * TAU, v: 120 + Math.random() * 160, c: ['#FFD23F', '#46C86E', '#FFF8E8', '#5FC8FF'][Math.floor(Math.random() * 4)], s: Math.random() * 6 }));
+            return;
+          }
+          for (const d of decoys) if (U.dist(m.x, m.y, d.x, d.y) < d.r - 8) { this.status = 'lost'; this.into = d; Sound.sfx('glug'); return; }
+        }
+        m.roll += Math.hypot(m.vx, m.vy) * dt / R;
+      },
+      draw(g) {
+        fillView(g, '#C2304A');
+        g.save(); g.globalAlpha = 0.4; Art.dots(g, '#A8213B', 22, 3); g.restore();
+        const b = ROLL_BOARD, W = b.x1 - b.x0, H = b.y1 - b.y0, t = this.t, m = this.m;
+        // Tray: its shadow slides with the tilt, so you can see which way it's tipped.
+        g.save(); g.globalAlpha = 0.28; Art.rr(g, b.x0 - 18 - this.tilt.x * 0.35, b.y0 - 10 - this.tilt.y * 0.35, W + 36, H + 36, 24); g.fillStyle = INK; g.fill(); g.restore();
+        Art.rr(g, b.x0 - 18, b.y0 - 18, W + 36, H + 36, 24); g.fillStyle = '#D9934F'; g.fill(); Art.ink(g, 6);
+        g.save(); g.strokeStyle = 'rgba(120,60,20,.35)'; g.lineWidth = 3;
+        for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(b.x0 - 8 + i * 70, b.y0 - 12); g.quadraticCurveTo(b.x0 + 20 + i * 70, b.y0 - 6, b.x0 + 48 + i * 70, b.y0 - 12); g.stroke(); }
+        g.restore();
+        Art.rr(g, b.x0, b.y0, W, H, 12); g.fillStyle = '#F4D8A0'; g.fill(); Art.ink(g, 4);
+        g.save(); Art.rr(g, b.x0, b.y0, W, H, 12); g.clip();
+        g.strokeStyle = 'rgba(190,130,60,.25)'; g.lineWidth = 2;
+        for (let y = b.y0 + 36; y < b.y1; y += 44) { g.beginPath(); g.moveTo(b.x0, y); g.bezierCurveTo(b.x0 + 90, y - 8, b.x0 + 200, y + 10, b.x1, y - 2); g.stroke(); }
+        g.restore();
+        const hole = (x, y, r) => { Art.circle(g, x, y, r); g.fillStyle = '#2A1512'; g.fill(); Art.ink(g, 4); g.beginPath(); g.arc(x, y, r - 3, Math.PI * 1.05, Math.PI * 1.95); g.lineWidth = 4; g.strokeStyle = 'rgba(255,255,255,.12)'; g.stroke(); };
+        // Hungry holes: eyes that watch the marble.
+        for (const d of decoys) {
+          hole(d.x, d.y, d.r);
+          const ate = this.into === d, k = ate ? U.clamp(this.end / 0.25, 0, 1) : 0;
+          const blink = (t * 1.3 + d.seed) % 3 < 0.12;
+          const lx = U.clamp((m.x - d.x) / 80, -1, 1) * 3, ly = U.clamp((m.y - d.y) / 80, -1, 1) * 3;
+          for (const sx of [-1, 1]) {
+            const ex = d.x + sx * 9, ey = d.y - 2;
+            if (ate && k >= 1) { g.beginPath(); g.arc(ex, ey + 3, 5, Math.PI * 1.1, Math.PI * 1.9); g.lineWidth = 3; g.strokeStyle = '#FFD23F'; g.stroke(); continue; }
+            g.beginPath(); g.ellipse(ex, ey, 6, blink ? 1 : 7.5, 0, 0, TAU); g.fillStyle = '#FFD23F'; g.fill();
+            if (!blink) { Art.circle(g, ex + lx, ey + ly, 3); g.fillStyle = INK; g.fill(); }
+          }
+        }
+        // The goal: a gold rim and a mini-golf flag.
+        Art.circle(g, this.goal.x, this.goal.y, this.goal.r + 7); g.fillStyle = '#FFD23F'; g.fill(); Art.ink(g, 4);
+        hole(this.goal.x, this.goal.y, this.goal.r);
+        // Marble (shrinks into a hole once it drops).
+        const fall = this.into ? U.clamp(this.end / 0.22, 0, 1) : 0, s = 1 - fall * 0.85;
+        if (s > 0.16) {
+          const R = ROLL_R * s;
+          if (!this.into) { g.save(); g.globalAlpha = 0.25; g.beginPath(); g.ellipse(m.x + 4 - this.tilt.x * 0.1, m.y + 6 - this.tilt.y * 0.1, R, R * 0.8, 0, 0, TAU); g.fillStyle = INK; g.fill(); g.restore(); }
+          Art.circle(g, m.x, m.y, R); g.fillStyle = this.into ? '#2F7FB0' : '#5FC8FF'; g.fill(); Art.ink(g, 4);
+          g.save(); Art.circle(g, m.x, m.y, R); g.clip();
+          g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 3;
+          g.beginPath(); g.moveTo(m.x - R, m.y + Math.sin(m.roll) * R * 0.6); g.quadraticCurveTo(m.x, m.y + Math.cos(m.roll) * R, m.x + R, m.y - Math.sin(m.roll) * R * 0.6); g.stroke();
+          g.restore();
+          Art.circle(g, m.x - R * 0.4, m.y - R * 0.45, R * 0.22); g.fillStyle = 'rgba(255,255,255,.85)'; g.fill();
+          // Face: looks where it's going, panics near a hungry hole.
+          const sp = Math.hypot(m.vx, m.vy) || 1, lx = (m.vx / sp) * Math.min(1, sp / 80) * 2.5 * s, ly = (m.vy / sp) * Math.min(1, sp / 80) * 2.5 * s;
+          const scared = this.status === 'lost' || decoys.some((d) => U.dist(m.x, m.y, d.x, d.y) < d.r + 34);
+          for (const sx of [-1, 1]) {
+            Art.circle(g, m.x + sx * 5 * s, m.y - 2 * s, (scared ? 4.6 : 3.8) * s); g.fillStyle = '#FFF8E8'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = INK; g.stroke();
+            Art.circle(g, m.x + sx * 5 * s + lx, m.y - 2 * s + ly, 1.8 * s); g.fillStyle = INK; g.fill();
+          }
+          g.beginPath();
+          if (scared) Art.circle(g, m.x, m.y + 6 * s, 2.6 * s);
+          else if (this.status === 'won') g.arc(m.x, m.y + 3 * s, 4 * s, 0.15 * Math.PI, 0.85 * Math.PI);
+          else g.arc(m.x, m.y + 4 * s, 3 * s, 0.2 * Math.PI, 0.8 * Math.PI);
+          g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
+        }
+        // Flag on top of everything.
+        const fx = this.goal.x + (this.goal.r + 4) * 0.7, fy = this.goal.y - (this.goal.r + 4) * 0.7, wave = Math.sin(t * 8) * 4, up = this.status === 'won' ? -10 * U.clamp(this.end / 0.2, 0, 1) : 0;
+        g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx, fy - 54 + up); Art.ink(g, 4);
+        g.beginPath(); g.moveTo(fx, fy - 54 + up); g.quadraticCurveTo(fx + 18, fy - 50 + up + wave, fx + 32, fy - 44 + up + wave); g.lineTo(fx, fy - 34 + up); g.closePath();
+        g.fillStyle = '#46C86E'; g.fill(); Art.ink(g, 3);
+        if (this.confetti) {
+          const k = this.end;
+          for (const c of this.confetti) {
+            const x = this.goal.x + Math.cos(c.a) * c.v * k, y = this.goal.y + Math.sin(c.a) * c.v * k + 300 * k * k;
+            g.save(); g.translate(x, y); g.rotate(c.s + k * 9); g.fillStyle = c.c; g.fillRect(-4, -2.5, 8, 5); g.restore();
+          }
+          Art.text(g, 'HOLE IN ONE!', 180, 108, 26, { scale: U.ease.outBack(U.clamp(this.end / 0.3, 0, 1)), rot: -0.05, fill: '#FFD23F' });
+        }
+        if (this.status === 'lost' && this.into) Art.text(g, 'GULP!', this.into.x, this.into.y - 44, 26, { scale: U.ease.outBack(U.clamp(this.end / 0.25, 0, 1)), rot: 0.1, fill: '#FFD23F' });
+        // Touch version: the virtual joystick.
+        if (mode === 'touch' && this.drag && this.status === 'playing') {
+          const sx = this.drag.sx, sy = this.drag.sy, fp = this.finger || { x: sx, y: sy };
+          g.save(); g.globalAlpha = 0.55;
+          Art.circle(g, sx, sy, ROLL_MAX_TILT / ROLL_TOUCH); g.lineWidth = 4; g.strokeStyle = '#FFF8E8'; g.stroke();
+          g.beginPath(); g.moveTo(sx, sy); g.lineTo(fp.x, fp.y); g.lineWidth = 5; g.stroke();
+          Art.circle(g, fp.x, fp.y, 18); g.fillStyle = '#FFF8E8'; g.fill();
+          g.restore();
+        }
+      },
+    };
+  },
+  // Steers straight at the goal (decoys are never on that line), braking so it arrives slowly.
+  bot(inst, B, ctx) {
+    const s = ctx.state, m = inst.m, gl = inst.goal;
+    let tx = 0, ty = 0;
+    if (B.t > ctx.delay && inst.status === 'playing') {
+      const dx = gl.x - m.x, dy = gl.y - m.y, d = Math.hypot(dx, dy) || 1;
+      const vd = Math.min(420, Math.sqrt(2 * 360 * d));
+      let ax = ((dx / d) * vd - m.vx) * 6, ay = ((dy / d) * vd - m.vy) * 6;
+      const amax = ROLL_ACC * Math.sin((ROLL_MAX_TILT - 1) * Math.PI / 180), am = Math.hypot(ax, ay);
+      if (am > amax) { ax *= amax / am; ay *= amax / am; }
+      tx = Math.asin(ax / ROLL_ACC) * 180 / Math.PI; ty = Math.asin(ay / ROLL_ACC) * 180 / Math.PI;
+    }
+    if (ctx.mode === 'sensor') return { tilt: { x: tx, y: ty } };
+    const dt = B.t - (s.lt == null ? B.t : s.lt); s.lt = B.t;
+    if (B.t <= ctx.delay) return { pointers: [] };
+    if (!s.land) { s.land = { x: 180, y: 400 }; s.p = { ...s.land }; return { pointers: [{ id: 9, x: s.p.x, y: s.p.y }] }; }
+    const wx = s.land.x + tx / ROLL_TOUCH, wy = s.land.y + ty / ROLL_TOUCH;
+    const ddx = wx - s.p.x, ddy = wy - s.p.y, dd = Math.hypot(ddx, ddy), step = 2400 * dt;
+    if (dd > step) { s.p.x += (ddx / dd) * step; s.p.y += (ddy / dd) * step; } else { s.p.x = wx; s.p.y = wy; }
+    return { pointers: [{ id: 9, x: s.p.x, y: s.p.y }] };
+  },
+});
+
+/* ---- 76-g-balance.js ---- */
+// BALANCE! — a waiter's wobbly pancake tower leans and drifts on its own; tilt the phone against the lean.
+// Survival: still standing when the fuse burns out wins. L2 adds gusts of wind, L3 stronger, more frequent ones.
+// Touch version: drag left/right under the tower to slide the waiter's hand.
+const BAL_LIMIT = 32;      // degrees of lean before it topples
+const BAL_K = 110;         // deg/s² of correction at full input
+const BAL_FULL_TILT = 25;  // phone tilt (deg) for full correction: seated-friendly
+const BAL_TOUCH_PX = 80;   // drag (px) for full correction in the touch version
+const BAL_N = 7;           // pancakes
+
+Games.add({
+  id: 'balance', verb: 'BALANCE!', sensor: 'tilt', look: '#1FA59B',
+  create({ level, rng, mode }) {
+    // A: how unstable it is (1/s²), D: steady drift (deg/s²), push: [gap min, gap max, size min, size max].
+    const P = [{ A: 2.6, D: 12, push: null }, { A: 3.0, D: 14, push: [0.9, 1.3, 18, 26] }, { A: 3.4, D: 16, push: [0.6, 1.0, 26, 38] }][level - 1];
+    const side = rng() < 0.5 ? -1 : 1, ph = rng() * TAU;
+    const pushes = [];
+    if (P.push) for (let t = 0.7 + rng() * 0.3; t < 9; t += P.push[0] + rng() * (P.push[1] - P.push[0])) pushes.push({ t, v: P.push[2] + rng() * (P.push[3] - P.push[2]) });
+    return {
+      status: 'playing', bg: '#1FA59B', t: 0, end: 0, P, side, mode,
+      th: side * 1.5, w: 0, u: 0, uShow: 0, drag: null, pushes, gust: null, bits: null,
+      update(dt, f) {
+        this.t += dt;
+        if (this.status !== 'playing') this.gust = null;
+        if (this.status === 'lost') { this.end += dt; const s = Math.sign(this.th); this.w += s * 500 * dt; this.th = U.clamp(this.th + this.w * dt, -110, 110); return; }
+        if (this.status === 'won') { this.end += dt; this.th *= Math.exp(-5 * dt); this.uShow *= Math.exp(-5 * dt); return; }
+        let u = 0;
+        if (mode === 'sensor') u = f.tilt.x / BAL_FULL_TILT;
+        else {
+          const p = this.drag ? f.pointers.find((q) => q.id === this.drag.id) : null;
+          if (!p) { this.drag = null; const n = f.pointers[0]; if (n) this.drag = { id: n.id, sx: n.x }; }
+          else u = (p.x - this.drag.sx) / BAL_TOUCH_PX;
+        }
+        this.u = u = U.clamp(u, -1, 1);
+        this.uShow += (u - this.uShow) * Math.min(1, dt * 18);
+        while (this.pushes.length && this.pushes[0].t <= this.t) {
+          // Gusts always shove the way it's already going (an idle tower can't get lucky).
+          const p = this.pushes.shift(), dir = Math.sign(this.th + 0.3 * this.w) || side;
+          this.w += dir * p.v; this.gust = { dir, t: 0 }; Sound.sfx('puff');
+        }
+        if (this.gust) { this.gust.t += dt; if (this.gust.t > 0.4) this.gust = null; }
+        const D = side * P.D * (1 + 0.3 * Math.sin(1.3 * this.t + ph)) * Math.min(1, this.t / 0.4);
+        this.w += (P.A * this.th + D + BAL_K * u - 0.6 * this.w) * dt;
+        this.th += this.w * dt;
+        if (Math.abs(this.th) > BAL_LIMIT) {
+          this.status = 'lost'; Sound.sfx('splash');
+          this.bits = Array.from({ length: BAL_N }, (_, i) => ({ vx: Math.sign(this.th) * (60 + Math.random() * 140) + (Math.random() - 0.5) * 60, spin: (Math.random() - 0.5) * 8, d: i / BAL_N }));
+        }
+      },
+      timeout() { return Math.abs(this.th) <= BAL_LIMIT ? 'won' : 'lost'; },
+      draw(g) {
+        fillView(g, '#1FA59B');
+        g.save(); g.globalAlpha = 0.4; Art.dots(g, '#178D84', 20, 3); g.restore();
+        const t = this.t, danger = U.clamp(Math.abs(this.th) / BAL_LIMIT, 0, 1);
+        // Lean gauge: needle vs red zones.
+        const GX = 180, GY = 196, GR = 64, toA = (d) => -Math.PI / 2 + U.clamp(d, -45, 45) / 45 * 1.2;
+        g.beginPath(); g.arc(GX, GY, GR, toA(-45), toA(45)); g.lineWidth = 20; g.strokeStyle = INK; g.lineCap = 'butt'; g.stroke();
+        g.beginPath(); g.arc(GX, GY, GR, toA(-BAL_LIMIT * 0.6), toA(BAL_LIMIT * 0.6)); g.lineWidth = 12; g.strokeStyle = '#B8F0A0'; g.stroke();
+        for (const s of [-1, 1]) {
+          g.beginPath(); g.arc(GX, GY, GR, Math.min(toA(s * BAL_LIMIT * 0.6), toA(s * BAL_LIMIT)), Math.max(toA(s * BAL_LIMIT * 0.6), toA(s * BAL_LIMIT))); g.strokeStyle = '#FFD23F'; g.stroke();
+          g.beginPath(); g.arc(GX, GY, GR, Math.min(toA(s * BAL_LIMIT), toA(s * 45)), Math.max(toA(s * BAL_LIMIT), toA(s * 45))); g.strokeStyle = '#FF4D5E'; g.stroke();
+        }
+        g.lineCap = 'round';
+        const na = toA(this.th);
+        g.beginPath(); g.moveTo(GX, GY); g.lineTo(GX + Math.cos(na) * (GR + 8), GY + Math.sin(na) * (GR + 8)); Art.ink(g, 6);
+        Art.circle(g, GX, GY, 8); g.fillStyle = INK; g.fill();
+        // Wind gust streaks blowing toward the push.
+        if (this.gust) {
+          const k = this.gust.t / 0.4, d = this.gust.dir;
+          g.save(); g.globalAlpha = 1 - k; g.lineWidth = 5; g.strokeStyle = '#FFF8E8';
+          for (let i = 0; i < 3; i++) {
+            const y = 290 + i * 46, x = 180 - d * (150 - k * 70);
+            g.beginPath(); g.moveTo(x - d * 50, y); g.quadraticCurveTo(x, y - 12, x + d * 30, y + 4); g.stroke();
+          }
+          g.restore();
+        }
+        // Waiter's arm and hand slide with your input; the plate tips with it.
+        const hx = 180 + this.uShow * 18, py = 474, pa = this.uShow * 0.1;
+        Art.rr(g, hx - 34, 530, 68, VIEW.y1 - 520, 10); g.fillStyle = '#26263A'; g.fill(); Art.ink(g, 5);
+        Art.rr(g, hx - 38, 518, 76, 22, 6); g.fillStyle = '#FFF8E8'; g.fill(); Art.ink(g, 4);
+        g.beginPath(); g.ellipse(hx, 502, 38, 22, 0, 0, TAU); g.fillStyle = '#FFF8E8'; g.fill(); Art.ink(g, 5);
+        for (const fx of [-22, -8, 8, 22]) { g.beginPath(); g.ellipse(hx + fx, 486, 7, 10, 0, 0, TAU); g.fillStyle = '#FFF8E8'; g.fill(); Art.ink(g, 3); }
+        g.save(); g.translate(hx, py); g.rotate(pa);
+        g.beginPath(); g.ellipse(0, 0, 88, 14, 0, 0, TAU); g.fillStyle = '#FFF8E8'; g.fill(); Art.ink(g, 5);
+        g.beginPath(); g.ellipse(0, -2, 60, 7, 0, 0, TAU); g.lineWidth = 2; g.strokeStyle = 'rgba(27,21,48,.25)'; g.stroke();
+        g.restore();
+        // The tower: each pancake leans a little more than the one below it.
+        const th = this.th * Math.PI / 180, lostK = this.status === 'lost' ? this.end : 0;
+        let x = hx, y = py - 10;
+        const top = { x, y, a: 0 };
+        for (let i = 0; i < BAL_N; i++) {
+          const a = th * (0.55 + 0.9 * i / BAL_N) + pa * 0.5;
+          x += Math.sin(a) * 23; y -= Math.cos(a) * 23;
+          let px = x, pyy = y, rot = a;
+          if (lostK > 0 && this.bits) { const bt = this.bits[i]; px += bt.vx * lostK * (0.6 + bt.d); pyy += 700 * lostK * lostK * (0.4 + bt.d); rot += bt.spin * lostK; }
+          const wob = this.status === 'playing' ? Math.sin(t * 9 + i) * danger * 0.04 : 0;
+          g.save(); g.translate(px, pyy); g.rotate(rot + wob);
+          Art.rr(g, -60 + (i % 2) * 4, -13, 120 - (i % 3) * 6, 26, 13); g.fillStyle = '#E0953D'; g.fill(); Art.ink(g, 4);
+          Art.rr(g, -54 + (i % 2) * 4, -11, 108 - (i % 3) * 6, 9, 5); g.fillStyle = '#F7C873'; g.fill();
+          if (i === BAL_N - 1) {
+            // syrup and the butter pat, who has opinions about this
+            g.beginPath(); g.moveTo(-40, -12); g.quadraticCurveTo(0, -20, 40, -12); g.lineTo(40, -2); g.quadraticCurveTo(34, 18, 28, -2); g.lineTo(-14, -2); g.quadraticCurveTo(-20, 22, -26, -2); g.lineTo(-40, -2); g.closePath();
+            g.fillStyle = '#8A4A1C'; g.fill(); Art.ink(g, 3);
+            Art.rr(g, -22, -42, 44, 32, 6); g.fillStyle = '#FFE680'; g.fill(); Art.ink(g, 4);
+            const lost = this.status === 'lost', won = this.status === 'won';
+            for (const sx of [-1, 1]) {
+              if (lost) { g.beginPath(); g.moveTo(sx * 9 - 4, -32); g.lineTo(sx * 9 + 4, -24); g.moveTo(sx * 9 + 4, -32); g.lineTo(sx * 9 - 4, -24); Art.ink(g, 2.5); }
+              else { Art.circle(g, sx * 9, -28, 2.5 + danger * 2.5); g.fillStyle = INK; g.fill(); }
+            }
+            g.beginPath();
+            if (won) g.arc(0, -22, 7, 0.15 * Math.PI, 0.85 * Math.PI);
+            else if (lost || danger > 0.55) { g.moveTo(-8, -17); for (let k = 1; k <= 4; k++) g.lineTo(-8 + k * 4, -17 + (k % 2 ? -3 : 0)); }
+            else { g.moveTo(-6, -18); g.lineTo(6, -18); }
+            Art.ink(g, 2.5);
+            if (danger > 0.5 && !won) { g.beginPath(); g.ellipse(26, -38 + ((t * 40) % 14), 4, 6, 0, 0, TAU); g.fillStyle = '#8ED8F8'; g.fill(); g.lineWidth = 2; g.strokeStyle = INK; g.stroke(); }
+          }
+          g.restore();
+          if (i === BAL_N - 1) Object.assign(top, { x: px, y: pyy, a: rot });
+        }
+        // Touch hint: which way to slide.
+        if (mode === 'touch' && this.status === 'playing') {
+          g.save(); g.globalAlpha = this.drag ? 0.35 : 0.85;
+          for (const s of [-1, 1]) { g.beginPath(); g.moveTo(hx + s * 50, 488); g.lineTo(hx + s * 74, 502); g.lineTo(hx + s * 50, 516); g.closePath(); g.fillStyle = '#FFD23F'; g.fill(); Art.ink(g, 4); }
+          g.restore();
+        }
+        if (this.status === 'lost') Art.text(g, 'SPLAT!', 180, 330, 52, { scale: U.ease.outBack(U.clamp(this.end / 0.3, 0, 1)), rot: -0.1, fill: '#FFD23F' });
+        if (this.status === 'won') Art.text(g, 'TA-DA!', top.x, top.y - 74, 34, { scale: U.ease.outBack(U.clamp(this.end / 0.3, 0, 1)), rot: 0.08, fill: '#FFD23F' });
+      },
+    };
+  },
+  // PD controller on the lean (knows the tower's instability, not the drift or the gusts).
+  bot(inst, B, ctx) {
+    const s = ctx.state;
+    let u = 0;
+    if (B.t > ctx.delay && inst.status === 'playing') u = U.clamp((-(8 + inst.P.A) * inst.th - (5 - 0.6) * inst.w) / BAL_K, -1, 1);
+    if (ctx.mode === 'sensor') return { tilt: { x: u * BAL_FULL_TILT, y: 0 } };
+    const dt = B.t - (s.lt == null ? B.t : s.lt); s.lt = B.t;
+    if (B.t <= ctx.delay) return { pointers: [] };
+    if (!s.land) { s.land = 180; s.x = 180; return { pointers: [{ id: 4, x: 180, y: 560 }] }; }
+    const want = s.land + u * BAL_TOUCH_PX, step = 2400 * dt;
+    s.x += U.clamp(want - s.x, -step, step);
+    return { pointers: [{ id: 4, x: s.x, y: 560 }] };
+  },
+});
+
+/* ---- 77-g-freeze.js ---- */
+// FREEZE! — a mouse tiptoes past a sleeping guard dog. Hold the phone dead still until the fuse burns out (inverted).
+// Sensor: hand motion (lin) or rotation (gyro) past FREEZE_TUNE wakes the dog, after a 1-beat settle.
+// Touch version: same verb, hands off: any tap or drag after the settle beat wakes it.
+const FREEZE_TUNE = {
+  lin: [1.2, 1.05, 0.9], // m/s² of hand acceleration that counts as moving, L1..L3
+  gyro: 25,              // deg/s of rotation (all axes combined) that counts as moving
+  stir: 0.1,             // seconds over a threshold before the dog wakes (decays at half speed when still)
+  grace: 1,              // beats at the start to settle; nothing counts yet
+  move: 10,              // px a finger already resting on the screen may drift (touch version)
+};
+
+Games.add({
+  id: 'freeze', verb: 'FREEZE!', verbTouch: 'FREEZE!', sensor: 'shake', inverted: true, look: '#3B2366',
+  create({ level, mode }) {
+    const thr = FREEZE_TUNE.lin[level - 1];
+    return {
+      status: 'playing', bg: '#3B2366', t: 0, end: 0, mode, thr, stir: 0, meter: 0, held: new Map(), prog: 0,
+      stars: Array.from({ length: 16 }, (_, i) => ({ x: 20 + ((i * 89) % 330), y: 112 + ((i * 47) % 150), p: i * 1.3 })),
+      wake() { if (this.status !== 'playing') return; this.status = 'lost'; Sound.sfx('alarm'); },
+      update(dt, f, B) {
+        this.t += dt;
+        const beats = (B && B.beats) || 8, beat = B ? B.beat : this.t * 2;
+        if (this.status === 'lost') { this.end += dt; return; }
+        this.prog = U.clamp(beat / beats, 0, 1);
+        if (this.status === 'won') { this.end += dt; this.prog = 1 + this.end; return; }
+        const settling = beat < FREEZE_TUNE.grace;
+        if (mode === 'sensor') {
+          const gy = f.gyro ? Math.hypot(f.gyro.a || 0, f.gyro.b || 0, f.gyro.g || 0) : 0;
+          const lv = Math.max((f.lin || 0) / thr, gy / FREEZE_TUNE.gyro);
+          this.meter += (lv - this.meter) * Math.min(1, dt * 12);
+          if (!settling && lv > 1) this.stir += dt; else this.stir = Math.max(0, this.stir - dt * 0.5);
+          if (this.stir >= FREEZE_TUNE.stir) this.wake();
+        } else {
+          if (settling) { this.held = new Map(f.pointers.map((p) => [p.id, { x: p.x, y: p.y }])); return; }
+          if (f.taps.length) { this.wake(); return; }
+          for (const p of f.pointers) {
+            const h = this.held.get(p.id);
+            if (!h || U.dist(p.x, p.y, h.x, h.y) > FREEZE_TUNE.move) { this.wake(); return; }
+          }
+        }
+      },
+      timeout() { this.status = 'won'; Sound.sfx('giggle'); return 'won'; },
+      draw(g) {
+        fillView(g, '#3B2366');
+        g.save(); g.globalAlpha = 0.35; Art.dots(g, '#4C3285', 22, 2.6); g.restore();
+        const t = this.t, lost = this.status === 'lost', won = this.status === 'won';
+        const stirK = lost ? 1 : U.clamp(this.stir / FREEZE_TUNE.stir, 0, 1);
+        // moon and stars
+        for (const s of this.stars) { g.save(); g.globalAlpha = 0.5 + 0.5 * Math.sin(t * 3 + s.p); Art.circle(g, s.x, s.y, 2.4); g.fillStyle = '#FFF1B8'; g.fill(); g.restore(); }
+        Art.circle(g, 300, 168, 34); g.fillStyle = '#FFF1B8'; g.fill(); Art.ink(g, 4);
+        Art.circle(g, 290, 160, 7); g.fillStyle = '#EED98A'; g.fill(); Art.circle(g, 310, 180, 5); g.fill();
+        // floor and the mouse hole
+        g.fillStyle = '#2A1748'; g.fillRect(VIEW.x0, 470, VIEW.x1 - VIEW.x0, VIEW.y1 - 470);
+        g.beginPath(); g.moveTo(VIEW.x0, 470); g.lineTo(VIEW.x1, 470); Art.ink(g, 5);
+        g.beginPath(); g.moveTo(312, 540); g.lineTo(312, 516); g.arc(332, 516, 20, Math.PI, 0); g.lineTo(352, 540); g.closePath(); g.fillStyle = '#120A22'; g.fill(); Art.ink(g, 4);
+        // doghouse
+        g.beginPath(); g.moveTo(40, 300); g.lineTo(110, 240); g.lineTo(180, 300); g.lineTo(180, 470); g.lineTo(40, 470); g.closePath(); g.fillStyle = '#D9483B'; g.fill(); Art.ink(g, 5);
+        g.beginPath(); g.moveTo(28, 308); g.lineTo(110, 232); g.lineTo(192, 308); g.lineWidth = 14; g.strokeStyle = INK; g.stroke(); g.lineWidth = 8; g.strokeStyle = '#7A2A2A'; g.stroke();
+        g.beginPath(); g.moveTo(80, 470); g.lineTo(80, 380); g.arc(110, 380, 30, Math.PI, 0); g.lineTo(140, 470); g.closePath(); g.fillStyle = '#1A0F2C'; g.fill(); Art.ink(g, 4);
+        // the dog, lying across the front
+        const jump = lost ? -Math.abs(Math.sin(this.end * 14)) * 16 * Math.max(0, 1 - this.end * 0.8) : 0;
+        const breath = lost ? 0 : Math.sin(t * 2.6) * 0.035;
+        const shake = stirK > 0 && !lost ? Math.sin(t * 50) * stirK * 2 : 0;
+        g.save(); g.translate(200 + shake, 452 + jump);
+        g.save(); g.scale(1, 1 + breath);
+        g.beginPath(); g.ellipse(10, -20, 108, 50, 0, 0, TAU); g.fillStyle = '#C98A4B'; g.fill(); Art.ink(g, 5);
+        g.beginPath(); g.ellipse(34, -38, 26, 18, 0.3, 0, TAU); g.fillStyle = '#8A5A2E'; g.fill(); // patch
+        g.beginPath(); g.ellipse(100, -14, 22, 12, 0.6, 0, TAU); g.fillStyle = '#C98A4B'; g.fill(); Art.ink(g, 4); // tail
+        g.restore();
+        for (const px of [-70, -30]) { g.beginPath(); g.ellipse(px, 22, 24, 12, 0, 0, TAU); g.fillStyle = '#E2A56A'; g.fill(); Art.ink(g, 4); }
+        // spiked collar, peeking out behind the head
+        g.beginPath(); g.ellipse(-22, -10, 12, 40, 0.25, 0, TAU); g.fillStyle = '#E24B5A'; g.fill(); Art.ink(g, 4);
+        for (const cy of [-36, -12, 12]) { Art.circle(g, -10 + cy * 0.25, -10 + cy, 4.5); g.fillStyle = '#E8E8F0'; g.fill(); g.lineWidth = 2; g.strokeStyle = INK; g.stroke(); }
+        // head
+        g.save(); g.translate(-72, -40);
+        g.beginPath(); g.ellipse(0, 0, 54, 46, 0, 0, TAU); g.fillStyle = '#D69A5C'; g.fill(); Art.ink(g, 5);
+        const earUp = lost ? 1 : stirK;
+        g.save(); g.translate(30, -30); g.rotate(0.5 - earUp * 1.1);
+        g.beginPath(); g.ellipse(14, 0, 22, 12, 0, 0, TAU); g.fillStyle = '#8A5A2E'; g.fill(); Art.ink(g, 4); g.restore();
+        g.save(); g.translate(-34, -28); g.rotate(-0.4 + earUp * 0.9);
+        g.beginPath(); g.ellipse(-12, 0, 20, 11, 0, 0, TAU); g.fillStyle = '#8A5A2E'; g.fill(); Art.ink(g, 4); g.restore();
+        // muzzle, jowls, nose
+        g.beginPath(); g.ellipse(-8, 18, 36, 22, 0, 0, TAU); g.fillStyle = '#F2D1A6'; g.fill(); Art.ink(g, 4);
+        g.beginPath(); g.ellipse(-8, 6, 12, 8, 0, 0, TAU); g.fillStyle = INK; g.fill();
+        // eyes: shut, cracking open as it stirs, wide and furious when awake
+        for (const sx of [-1, 1]) {
+          const ex = -8 + sx * 22, ey = -12;
+          if (lost) {
+            Art.circle(g, ex, ey, 11); g.fillStyle = '#FFF8E8'; g.fill(); Art.ink(g, 3);
+            Art.circle(g, ex + 1, ey + 1, 5); g.fillStyle = '#E8202A'; g.fill();
+            g.beginPath(); g.moveTo(ex - sx * 14, ey - 18); g.lineTo(ex + sx * 8, ey - 10); Art.ink(g, 5);
+          } else if (stirK > 0.15) {
+            g.beginPath(); g.ellipse(ex, ey, 9, 9 * stirK, 0, 0, TAU); g.fillStyle = '#FFF8E8'; g.fill(); Art.ink(g, 3);
+            Art.circle(g, ex, ey, 3.5 * stirK); g.fillStyle = INK; g.fill();
+          } else { g.beginPath(); g.arc(ex, ey - 3, 9, 0.15 * Math.PI, 0.85 * Math.PI); Art.ink(g, 4); }
+        }
+        if (lost) {
+          g.beginPath(); g.ellipse(-8, 34, 20, 14, 0, 0, TAU); g.fillStyle = '#8A1E2A'; g.fill(); Art.ink(g, 4);
+          g.fillStyle = '#FFF8E8'; for (const tx of [-18, 2]) { g.beginPath(); g.moveTo(tx, 22); g.lineTo(tx + 6, 30); g.lineTo(tx + 12, 22); g.closePath(); g.fill(); }
+        } else { g.beginPath(); g.moveTo(-26, 28); g.quadraticCurveTo(-8, 36, 10, 28); Art.ink(g, 3); }
+        // snot bubble breathes in and out; pops when it stirs
+        if (!lost && stirK < 0.5) {
+          const br = 7 + 9 * (0.5 + 0.5 * Math.sin(t * 2.6));
+          Art.circle(g, -24 - br * 0.7, 10, br); g.fillStyle = 'rgba(160,220,255,.55)'; g.fill(); g.lineWidth = 3; g.strokeStyle = INK; g.stroke();
+          Art.circle(g, -24 - br, 10 - br * 0.4, br * 0.2); g.fillStyle = 'rgba(255,255,255,.85)'; g.fill();
+        }
+        g.restore();
+        g.restore();
+        // Zzz, or WOOF!
+        if (!lost) {
+          for (let i = 0; i < 3; i++) {
+            const k = ((t * 0.6 + i / 3) % 1);
+            g.save(); g.globalAlpha = (1 - k) * (1 - stirK);
+            Art.text(g, 'Z', 150 + k * 50 + i * 4, 330 - k * 90, 18 + k * 18, { rot: -0.2, fill: '#FFF8E8' });
+            g.restore();
+          }
+        } else {
+          const k = U.ease.outBack(U.clamp(this.end / 0.25, 0, 1));
+          g.save(); g.translate(150, 280); g.scale(k, k); g.rotate(-0.08);
+          g.beginPath(); for (let i = 0; i < 20; i++) { const a = (i / 20) * TAU, r = i % 2 ? 58 : 78; g.lineTo(Math.cos(a) * r * 1.3, Math.sin(a) * r * 0.75); }
+          g.closePath(); g.fillStyle = '#FFD23F'; g.fill(); Art.ink(g, 5);
+          g.restore();
+          Art.text(g, 'WOOF!', 150, 280, 44, { scale: k, rot: -0.08, fill: '#FF5A4E' });
+        }
+        // the mouse, tiptoeing toward its hole with a wedge of cheese
+        const mp = this.prog, mx = U.lerp(48, 330, Math.min(1, mp)), my = 520;
+        if (mp < 1.05) {
+          const step = lost ? 0 : Math.abs(Math.sin(t * 9)) * 4;
+          g.save(); g.translate(mx, my - step);
+          g.beginPath(); g.moveTo(-16, 4); g.quadraticCurveTo(-34, 0, -38, -14); Art.ink(g, 3);
+          g.beginPath(); g.ellipse(0, -2, 17, 12, 0, 0, TAU); g.fillStyle = '#B9B4C8'; g.fill(); Art.ink(g, 4);
+          Art.circle(g, 6, -14, 7); g.fillStyle = '#E8B4C8'; g.fill(); Art.ink(g, 3);
+          Art.circle(g, 15, -4, 2.6); g.fillStyle = INK; g.fill();
+          Art.circle(g, 19, 1, 2.6); g.fillStyle = '#FF7A9A'; g.fill();
+          g.beginPath(); g.moveTo(-4, -16); g.lineTo(12, -28); g.lineTo(18, -14); g.closePath(); g.fillStyle = '#FFD23F'; g.fill(); Art.ink(g, 3);
+          g.restore();
+          if (lost) Art.text(g, '!', mx + 4, my - 50, 34, { fill: '#FFD23F', scale: U.ease.outBack(U.clamp(this.end / 0.2, 0, 1)) });
+        }
+        // Sensor version: a stillness meter. Touch version: a "hands off" sign.
+        if (mode === 'sensor') {
+          const v = U.clamp(this.meter, 0, 1.3) / 1.3;
+          Art.text(g, 'SHH', 56, 128, 18, { fill: '#FFF8E8' });
+          Art.rr(g, 92, 118, 190, 20, 10); g.fillStyle = '#1A0F2C'; g.fill(); Art.ink(g, 4);
+          if (v > 0.02) { Art.rr(g, 95, 121, 184 * v, 14, 7); g.fillStyle = v < 0.5 ? '#7EE08A' : v < 0.77 ? '#FFD23F' : '#FF4D5E'; g.fill(); }
+          g.beginPath(); g.moveTo(92 + 190 / 1.3, 112); g.lineTo(92 + 190 / 1.3, 144); g.lineWidth = 3; g.strokeStyle = '#FFF8E8'; g.stroke();
+        } else if (this.status === 'playing') {
+          Art.circle(g, 56, 136, 30); g.fillStyle = '#FFF8E8'; g.fill(); Art.ink(g, 4);
+          Art.icon(g, 'touch', 56, 138, 38, 0);
+          g.beginPath(); g.moveTo(35, 157); g.lineTo(77, 115); g.lineWidth = 7; g.strokeStyle = '#E8202A'; g.stroke();
+          Art.circle(g, 56, 136, 30); g.lineWidth = 6; g.stroke();
+        }
+        if (won) Art.text(g, 'PHEW!', 250, 420, 30, { scale: U.ease.outBack(U.clamp(this.end / 0.3, 0, 1)), rot: 0.08, fill: '#7EE08A' });
+      },
+    };
+  },
+  // Fidgets during the settle beat (which mustn't count), then holds with realistic hand tremor.
+  bot(inst, B, ctx) {
+    if (ctx.mode === 'touch') return B.beat > 0.3 && B.beat < 0.4 ? { taps: [{ id: 3, x: 300, y: 300 }] } : {};
+    if (B.beat < 0.5) return { lin: 1.8, gyro: { a: 10, b: 30, g: 0 } };
+    const r = ctx.rng;
+    return { lin: 0.2 + r() * 0.25, gyro: { a: r() * 4, b: r() * 4, g: r() * 4 } };
+  },
+});
+
+/* ---- 78-g-shh.js ---- */
+// SHH! — Grandpa is dozing in his armchair. Stay quiet: enough noise and he wakes up. Inverted: the fuse running out wins.
+// Touch version HUSH!: things around him go off one after another. Tap them quiet if you like, but never touch Grandpa,
+// and every tap on the creaky floor stirs him (L1 three creaks wake him, L2/L3 two).
+const SHH_TUNE = {
+  rel: 2.2,               // noisy = rms above ambient × this...
+  add: 0.03,              // ...and above ambient + this (whichever is higher)
+  tol: [0.35, 0.25, 0.18], // seconds of accumulated noise that wake him, per level
+  decay: 0.08,            // the meter drains this many seconds per second of quiet
+};
+const SHH_RING = [0.9, 0.8, 0.7];    // touch: seconds each noisy thing goes off
+const SHH_CREAKS = [3, 2, 2];        // touch: floor taps that wake him
+const SHH_CHAIR = { x0: 82, y0: 232, x1: 278, y1: 504 }; // touch: tap here = wake him
+
+function shh_inChair(x, y) { const c = SHH_CHAIR; return x > c.x0 && x < c.x1 && y > c.y0 && y < c.y1; }
+
+function shh_grandpa(g, s) {
+  const t = s.t, jump = s.lostK ? -26 * U.ease.outBack(s.lostK) : 0;
+  // armchair
+  Art.rr(g, 84, 228, 192, 210, 46); Art.fillInk(g, '#C9493B', 5);
+  Art.rr(g, 104, 246, 152, 150, 30); Art.fillInk(g, '#B23A2E', 4);
+  for (const x of [72, 288]) { g.beginPath(); g.moveTo(x - 6, 494); g.lineTo(x - 2, 512); g.lineTo(x + 6, 512); g.lineTo(x + 6, 494); Art.fillInk(g, '#6B3A22', 4); }
+  g.save(); g.translate(0, jump);
+  // body: cardigan, newspaper, slippers
+  Art.rr(g, 116, 330, 128, 120, 44); Art.fillInk(g, '#5E8C4A', 5);
+  g.beginPath(); g.moveTo(180, 336); g.lineTo(180, 446); Art.ink(g, 3);
+  for (const y of [362, 392, 422]) { Art.circle(g, 186, y, 3.5); g.fillStyle = '#FFD23F'; g.fill(); }
+  for (const sx of [-1, 1]) { Art.rr(g, 180 + sx * 30 - 15, 436, 30, 50, 10); Art.fillInk(g, '#7A6250', 4); }
+  for (const x of [150, 210]) { g.beginPath(); g.ellipse(x, 488, 26, 12, 0, 0, TAU); Art.fillInk(g, '#4B6FD6', 4); }
+  if (!s.lostK) {
+    g.save(); g.translate(180, 412); g.rotate(-0.08 + Math.sin(t * 2.4) * 0.03);
+    Art.rr(g, -58, -24, 116, 50, 4); Art.fillInk(g, '#EDE6D6', 4);
+    g.fillStyle = 'rgba(27,21,48,.45)'; for (let i = 0; i < 4; i++) g.fillRect(-48, -14 + i * 10, i === 0 ? 50 : 96, 4);
+    g.restore();
+  } else {
+    const k = s.lostK;
+    g.save(); g.translate(180 + k * 90, 400 - k * 260); g.rotate(k * 4);
+    Art.rr(g, -50, -22, 100, 44, 4); Art.fillInk(g, '#EDE6D6', 4); g.restore();
+  }
+  // arms resting on the arms of the chair
+  for (const sx of [-1, 1]) { Art.rr(g, 180 + sx * 70 - 22, 376, 44, 66, 20); Art.fillInk(g, '#5E8C4A', 4); }
+  g.restore();
+  for (const x of [56, 248]) { Art.rr(g, x, 330, 56, 150, 26); Art.fillInk(g, '#D85A4A', 5); }
+  g.save(); g.translate(0, jump);
+  // head (bobs while asleep)
+  const bob = s.lostK ? 0 : Math.sin(t * 2.2) * 3, hx = 180, hy = 298 + bob, tilt = s.lostK ? 0 : 0.12;
+  g.save(); g.translate(hx, hy); g.rotate(tilt);
+  for (const sx of [-1, 1]) { Art.circle(g, sx * 44, 6, 10); Art.fillInk(g, '#F2C29B', 4); }
+  Art.circle(g, 0, 0, 44); Art.fillInk(g, '#F2C29B', 5);
+  // white side tufts (stand up when startled)
+  for (const sx of [-1, 1]) {
+    g.beginPath();
+    if (s.lostK) { for (let i = 0; i < 4; i++) { g.moveTo(sx * 34, -10 + i * 6); g.lineTo(sx * (54 + i * 4), -30 + i * 8); } Art.ink(g, 5); }
+    else { g.ellipse(sx * 38, -14, 12, 16, sx * 0.4, 0, TAU); Art.fillInk(g, '#F4F1EA', 3); }
+  }
+  // glasses pushed up on the forehead
+  for (const sx of [-1, 1]) { Art.circle(g, sx * 15, -26, 10); g.fillStyle = 'rgba(190,230,255,.5)'; g.fill(); Art.ink(g, 3); }
+  g.beginPath(); g.moveTo(-5, -26); g.lineTo(5, -26); Art.ink(g, 3);
+  // eyes: closed arcs, a lid that cracks open with the noise, wide when awake
+  for (const sx of [-1, 1]) {
+    const ex = sx * 17, ey = -2;
+    if (s.lostK) {
+      Art.circle(g, ex, ey, 12); Art.fillInk(g, '#FFF8E8', 3); Art.circle(g, ex, ey, 3.5); g.fillStyle = INK; g.fill();
+    } else {
+      const o = U.clamp(s.open * (sx > 0 ? 1 : 0.55), 0, 1);
+      if (o > 0.08) {
+        g.beginPath(); g.ellipse(ex, ey, 9, 7 * o, 0, 0, TAU); Art.fillInk(g, '#FFF8E8', 3);
+        Art.circle(g, ex, ey + 1, 2.5 * o + 1); g.fillStyle = INK; g.fill();
+        g.beginPath(); g.moveTo(ex - 10, ey - 7 * o - 2); g.lineTo(ex + 10, ey - 7 * o - 2); Art.ink(g, 3);
+      } else { g.beginPath(); g.arc(ex, ey - 3, 8, 0.15 * Math.PI, 0.85 * Math.PI); Art.ink(g, 3.5); }
+      // eyebrow lifts with the noise
+      g.beginPath(); g.moveTo(ex - 10, ey - 13 - o * 6 * (sx > 0 ? 1 : 0.4)); g.lineTo(ex + 10, ey - 12 - o * 8 * (sx > 0 ? 1 : 0.4)); g.lineWidth = 5; g.strokeStyle = '#F4F1EA'; g.lineCap = 'round'; g.stroke();
+    }
+  }
+  Art.circle(g, 0, 14, 12); Art.fillInk(g, '#E8957A', 4);
+  // moustache, mouth
+  g.beginPath(); g.moveTo(0, 24); g.bezierCurveTo(-14, 18, -28, 26, -30, 36); g.bezierCurveTo(-18, 32, -8, 34, 0, 30);
+  g.bezierCurveTo(8, 34, 18, 32, 30, 36); g.bezierCurveTo(28, 26, 14, 18, 0, 24); Art.fillInk(g, '#F4F1EA', 3);
+  if (s.lostK) { g.beginPath(); g.ellipse(0, 40, 8, 6, 0, 0, TAU); g.fillStyle = INK; g.fill(); }
+  else { g.beginPath(); g.ellipse(0, 39, 5, 2 + Math.max(0, Math.sin(t * 2.2)) * 2, 0, 0, TAU); g.fillStyle = INK; g.fill(); }
+  g.restore();
+  // snot bubble from the nose: grows and shrinks with the snore, huge on a win
+  if (!s.lostK) {
+    const br = s.won ? 16 + Math.min(1, s.wonT * 2) * 14 : 4 + 9 * (0.5 + 0.5 * Math.sin(t * 2.2)) * (1 - s.open * 0.8);
+    Art.circle(g, hx + 14 + br * 0.7, hy + 22 + br * 0.4, br); g.fillStyle = 'rgba(200,236,255,.55)'; g.fill(); Art.ink(g, 3);
+    Art.circle(g, hx + 10 + br * 0.5, hy + 18 + br * 0.2, br * 0.25); g.fillStyle = 'rgba(255,255,255,.8)'; g.fill();
+  }
+  g.restore();
+}
+
+function shh_item(g, it, t, mode) {
+  const ring = it.on ? 1 : 0, shake = ring ? Math.sin(t * 60) * 4 : 0;
+  g.save(); g.translate(it.x + shake, it.y);
+  if (it.quietT > 0) { const k = 1 - it.quietT / 0.5; g.scale(1 + 0.15 * (1 - k), 1 - 0.2 * (1 - k)); }
+  if (it.kind === 'radio') {
+    Art.rr(g, -36, -20, 72, 46, 10); Art.fillInk(g, '#E89C3A', 4);
+    Art.circle(g, -14, 3, 13); Art.fillInk(g, '#7A4A22', 3);
+    for (let i = 0; i < 3; i++) { g.fillStyle = INK; g.fillRect(6, -6 + i * 8, 22, 3); }
+    g.beginPath(); g.moveTo(20, -20); g.lineTo(30, -40); Art.ink(g, 3);
+  } else if (it.kind === 'cuckoo') {
+    g.beginPath(); g.moveTo(-34, -14); g.lineTo(0, -44); g.lineTo(34, -14); g.closePath(); Art.fillInk(g, '#7A4A22', 4);
+    Art.rr(g, -28, -16, 56, 58, 6); Art.fillInk(g, '#A8683A', 4);
+    Art.circle(g, 0, 16, 15); Art.fillInk(g, '#FFF8E8', 3);
+    g.beginPath(); g.moveTo(0, 16); g.lineTo(0, 6); g.moveTo(0, 16); g.lineTo(8, 18); Art.ink(g, 2.5);
+    const sw = Math.sin(t * (it.wobble ? 9 : 3)) * (it.wobble ? 0.6 : 0.3);
+    g.save(); g.translate(0, 42); g.rotate(sw); g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 34); Art.ink(g, 3);
+    Art.circle(g, 0, 38, 7); Art.fillInk(g, '#FFD23F', 3); g.restore();
+    const door = ring || it.peek ? 1 : 0;
+    Art.rr(g, -9, -30, 18, 14, 3); g.fillStyle = door ? INK : '#5A3418'; g.fill();
+    if (door) { // the bird pokes out
+      const out = ring ? 10 + Math.sin(t * 22) * 4 : 6;
+      Art.circle(g, 0, -24, 8); Art.fillInk(g, '#FFD23F', 3);
+      g.beginPath(); g.moveTo(6, -26); g.lineTo(6 + out, -24); g.lineTo(6, -20); Art.fillInk(g, '#FF8A3D', 2);
+    }
+  } else if (it.kind === 'cat') {
+    const up = ring ? 1 : 0;
+    g.beginPath(); g.ellipse(0, 10, 34, 18 + up * 6, 0, 0, TAU); Art.fillInk(g, '#9C9AA8', 4);
+    g.beginPath(); g.moveTo(30, 14); g.quadraticCurveTo(52, up ? -26 : 10, 44, up ? -30 : 24); Art.ink(g, 9);
+    g.beginPath(); g.moveTo(30, 14); g.quadraticCurveTo(52, up ? -26 : 10, 44, up ? -30 : 24); g.lineWidth = 4; g.strokeStyle = '#9C9AA8'; g.stroke();
+    const hy = up ? -18 : 2;
+    for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(-22 + sx * 10 - 6, hy - 10); g.lineTo(-22 + sx * 10, hy - 24); g.lineTo(-22 + sx * 10 + 6, hy - 10); Art.fillInk(g, '#9C9AA8', 3); }
+    Art.circle(g, -22, hy, 16); Art.fillInk(g, '#9C9AA8', 4);
+    if (up) { for (const sx of [-1, 1]) { Art.circle(g, -22 + sx * 6, hy - 2, 3); g.fillStyle = INK; g.fill(); } g.beginPath(); g.ellipse(-22, hy + 7, 4, 5, 0, 0, TAU); g.fillStyle = INK; g.fill(); }
+    else { for (const sx of [-1, 1]) { g.beginPath(); g.arc(-22 + sx * 6, hy - 2, 3.5, 0.1 * Math.PI, 0.9 * Math.PI); Art.ink(g, 2.5); } }
+  } else if (it.kind === 'alarm') {
+    for (const sx of [-1, 1]) { g.save(); g.rotate(sx * (0.5 + (ring ? Math.sin(t * 50) * 0.25 : 0))); Art.circle(g, 0, -34, 10); Art.fillInk(g, '#FFD23F', 3); g.restore(); }
+    for (const sx of [-1, 1]) { g.beginPath(); g.moveTo(sx * 16, 18); g.lineTo(sx * 24, 32); Art.ink(g, 5); }
+    Art.circle(g, 0, 0, 26); Art.fillInk(g, '#4BB8E8', 4);
+    Art.circle(g, 0, 0, 19); Art.fillInk(g, '#FFF8E8', 3);
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -13); g.moveTo(0, 0); g.lineTo(9, 4); Art.ink(g, 3);
+  }
+  g.restore();
+  if (ring && mode === 'touch') {
+    const word = { radio: 'LA LA!', cuckoo: 'CUCKOO!', cat: 'MEOW!', alarm: 'RING!' }[it.kind];
+    const k = U.clamp(it.onT / 0.15, 0, 1);
+    g.save(); g.strokeStyle = '#FFF8E8'; g.lineWidth = 4; g.lineCap = 'round';
+    for (let i = 0; i < 3; i++) { const r = 40 + i * 10 + ((it.onT * 60) % 10); g.globalAlpha = 0.8 - i * 0.22; g.beginPath(); g.arc(it.x, it.y, r, -0.7, 0.7); g.stroke(); g.beginPath(); g.arc(it.x, it.y, r, Math.PI - 0.7, Math.PI + 0.7); g.stroke(); }
+    g.restore();
+    const ty = it.y < 300 ? it.y + 66 : it.y - 64;
+    Art.text(g, word, U.clamp(it.x, 70, 290), ty, 20, { scale: U.ease.outBack(k), rot: Math.sin(t * 20) * 0.08, fill: '#FFD23F' });
+  }
+  if (it.quietT > 0) {
+    const k = 1 - it.quietT / 0.5;
+    g.save(); g.globalAlpha = 1 - k; Art.text(g, 'shh', it.x, it.y - 44 - k * 24, 18, { fill: '#B8F0FF' }); g.restore();
+  }
+}
+
+Games.add({
+  id: 'shh', verb: 'SHH!', verbTouch: 'HUSH!', sensor: 'mic', inverted: true, look: '#4A2E4F',
+  create({ level, rng, mode }) {
+    const items = [
+      { kind: 'radio', x: 64, y: 186 }, { kind: 'cuckoo', x: 296, y: 170 },
+      { kind: 'cat', x: 66, y: 548 }, { kind: 'alarm', x: 296, y: 546 },
+    ].map((it) => ({ ...it, on: false, onT: 0, quietT: 0, peek: false, wobble: false }));
+    // Touch: who goes off when (in beats), never the same thing twice in a row.
+    const starts = [[1.4, 3.0, 4.6, 6.2], [1.3, 2.55, 3.8, 5.05, 6.3], [1.2, 2.2, 3.2, 4.2, 5.2, 6.2]][level - 1];
+    let prev = -1;
+    const plan = starts.map((b) => { let k; do k = Math.floor(rng() * items.length); while (k === prev); prev = k; return { b, k, done: false }; });
+    return {
+      status: 'playing', bg: '#4A2E4F', t: 0, items, plan, noise: 0, loud: 0, open: 0, creaks: 0, stir: 0,
+      lostT: 0, wonT: 0, pops: [], tol: SHH_TUNE.tol[level - 1], mode, level,
+      update(dt, f, B) {
+        this.t += dt;
+        for (const it of items) { if (it.quietT > 0) it.quietT = Math.max(0, it.quietT - dt); if (it.on) it.onT += dt; }
+        for (const p of this.pops) p.t += dt;
+        this.pops = this.pops.filter((p) => p.t < 0.7);
+        if (this.status === 'lost') { this.lostT += dt; return; }
+        if (this.status === 'won') { this.wonT += dt; return; }
+        if (mode === 'sensor') {
+          // Cosmetic temptations: the cuckoo clock wobbles and its bird peeks out, silently.
+          const cu = items[1]; cu.wobble = B.beat > 2.5 && B.beat < 6; cu.peek = B.beat > 3.5 && B.beat < 5.5;
+          const amb = f.mic.ambient, thr = Math.max(amb * SHH_TUNE.rel, amb + SHH_TUNE.add);
+          const on = f.mic.rms > thr;
+          this.loud = U.lerp(this.loud, on ? 1 : 0, Math.min(1, dt * 14));
+          this.noise = on ? this.noise + dt : Math.max(0, this.noise - dt * SHH_TUNE.decay);
+          this.open = U.clamp(this.noise / this.tol, 0, 1);
+          if (this.noise > this.tol) { this.status = 'lost'; Sound.sfx('boom'); }
+          return;
+        }
+        // Touch: things go off on schedule; each stops by itself after a moment (he only stirs).
+        for (const p of plan) {
+          if (!p.done && B.beat >= p.b) {
+            p.done = true; const it = items[p.k];
+            if (!it.on) { it.on = true; it.onT = 0; Sound.sfx({ radio: 'giggle', cuckoo: 'blink', cat: 'blink', alarm: 'alarm' }[it.kind]); }
+          }
+        }
+        for (const it of items) if (it.on && it.onT > SHH_RING[level - 1]) { it.on = false; this.stir = Math.min(1, this.stir + 0.35); }
+        this.stir = Math.max(0, this.stir - dt * 0.6);
+        for (const tp of f.taps) {
+          const it = items.find((q) => U.dist(tp.x, tp.y, q.x, q.y) < 48);
+          if (it) { if (it.on) { it.on = false; it.quietT = 0.5; Sound.sfx('puff'); } continue; }
+          if (shh_inChair(tp.x, tp.y)) { this.status = 'lost'; this.pops.push({ x: tp.x, y: tp.y, t: 0, w: 'POKE' }); Sound.sfx('boom'); return; }
+          this.creaks++; this.pops.push({ x: tp.x, y: tp.y, t: 0, w: 'CREAK' }); Sound.sfx('whiff');
+          if (this.creaks >= SHH_CREAKS[level - 1]) { this.status = 'lost'; Sound.sfx('boom'); return; }
+        }
+        const anyOn = items.some((q) => q.on);
+        this.open = U.clamp(Math.max(this.stir * 0.6, this.creaks / SHH_CREAKS[level - 1]) + (anyOn ? 0.15 : 0), 0, 0.9);
+      },
+      timeout() { return 'won'; },
+      draw(g, B) {
+        const t = this.t, lostK = this.status === 'lost' ? U.clamp(this.lostT / 0.3, 0, 1) : 0;
+        fillView(g, '#4A2E4F');
+        g.save(); g.globalAlpha = 0.4; Art.dots(g, '#5E3D64', 22, 2.4); g.restore();
+        // window with the moon, shelf, lamp glow
+        Art.rr(g, 128, 88, 104, 92, 10); Art.fillInk(g, '#1E1838', 5);
+        Art.circle(g, 206, 114, 15); g.fillStyle = '#FFF3B0'; g.fill(); Art.circle(g, 200, 110, 13); g.fillStyle = '#1E1838'; g.fill();
+        g.beginPath(); g.moveTo(180, 88); g.lineTo(180, 180); g.moveTo(128, 134); g.lineTo(232, 134); Art.ink(g, 4);
+        g.fillStyle = '#FFF3B0'; for (const [x, y] of [[146, 104], [160, 160], [216, 164]]) { Art.circle(g, x, y, 2); g.fill(); }
+        Art.rr(g, 14, 210, 104, 12, 4); Art.fillInk(g, '#8A5A34', 4);
+        // floor and rug
+        g.fillStyle = '#6E4B3A'; g.fillRect(VIEW.x0, 500, VIEW.x1 - VIEW.x0, VIEW.y1 - 500);
+        g.beginPath(); g.moveTo(VIEW.x0, 500); g.lineTo(VIEW.x1, 500); Art.ink(g, 5);
+        g.strokeStyle = 'rgba(27,21,48,.35)'; g.lineWidth = 2; for (let y = 530; y < VIEW.y1; y += 34) { g.beginPath(); g.moveTo(VIEW.x0, y); g.lineTo(VIEW.x1, y); g.stroke(); }
+        g.beginPath(); g.ellipse(180, 520, 130, 22, 0, 0, TAU); Art.fillInk(g, '#E0A63A', 4);
+        g.beginPath(); g.ellipse(180, 520, 100, 13, 0, 0, TAU); g.strokeStyle = '#B3742A'; g.lineWidth = 4; g.stroke();
+        for (const it of items) if (it.kind !== 'cat' && it.kind !== 'alarm') shh_item(g, it, t, mode);
+        shh_grandpa(g, { t, open: this.open, lostK, won: this.status === 'won', wonT: this.wonT });
+        for (const it of items) if (it.kind === 'cat' || it.kind === 'alarm') shh_item(g, it, t, mode);
+        // a fly buzzing round his nose (cosmetic)
+        if (!lostK) {
+          const fx = 180 + Math.cos(t * 3.1) * 64 + Math.sin(t * 17) * 6, fy = 286 + Math.sin(t * 4.3) * 40 + Math.cos(t * 23) * 4;
+          g.save(); g.globalAlpha = 0.75; for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(fx + sx * 5, fy - 5, 5, 3 + Math.abs(Math.sin(t * 70)) * 2, sx * 0.6, 0, TAU); g.fillStyle = '#E8F6FF'; g.fill(); Art.ink(g, 1.5); } g.restore();
+          Art.circle(g, fx, fy, 4.5); g.fillStyle = INK; g.fill();
+          g.save(); g.globalAlpha = 0.5; g.strokeStyle = '#FFF8E8'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(fx - 12, fy + 6); g.quadraticCurveTo(fx - 18, fy, fx - 24, fy + 6); g.stroke(); g.restore();
+        }
+        // Zzz while asleep
+        if (!lostK) {
+          for (let i = 0; i < 3; i++) {
+            const k = ((t * 0.7 + i / 3) % 1);
+            g.save(); g.globalAlpha = (1 - k) * (1 - this.open * 0.7);
+            Art.text(g, 'z', 230 + k * 40 + Math.sin(k * 6 + i) * 6, 262 - k * 70, 16 + k * 14, { fill: '#B8F0FF' });
+            g.restore();
+          }
+        }
+        // sensor: the noise meter (how close he is to waking)
+        if (mode === 'sensor') {
+          const x0 = 128, w = 140, y = 204, k = this.open;
+          if (this.status === 'playing') {
+            // a little speaker icon, then the bar
+            g.beginPath(); g.moveTo(104, y - 5); g.lineTo(111, y - 5); g.lineTo(119, y - 12); g.lineTo(119, y + 12); g.lineTo(111, y + 5); g.lineTo(104, y + 5); g.closePath(); Art.fillInk(g, '#FFF8E8', 3);
+            Art.rr(g, x0, y - 9, w, 18, 9); g.fillStyle = '#2A1830'; g.fill(); Art.ink(g, 4);
+            if (k > 0.01) { Art.rr(g, x0 + 3, y - 6, (w - 6) * k, 12, 6); g.fillStyle = k > 0.66 ? '#FF4A5A' : '#FFD23F'; g.fill(); }
+            if (this.loud > 0.3) Art.text(g, '!', x0 + w + 16, y, 22, { fill: '#FF4A5A', scale: 0.8 + this.loud * 0.4 });
+          }
+        }
+        for (const p of this.pops) {
+          const k = p.t / 0.7;
+          g.save(); g.globalAlpha = 1 - k; Art.text(g, p.w, U.clamp(p.x, 60, 300), p.y - 20 - k * 30, 18, { fill: p.w === 'POKE' ? '#FF4A5A' : '#FFF8E8', rot: -0.1 }); g.restore();
+        }
+        if (lostK) Art.text(g, 'WHAT?!', 180, 172, 46, { scale: U.ease.outBack(lostK), rot: -0.08, fill: '#FF5FA2' });
+        if (this.status === 'won') Art.text(g, 'ZZZ…', 180, 172, 40, { scale: U.ease.outBack(U.clamp(this.wonT / 0.3, 0, 1)), rot: -0.06, fill: '#B8F0FF' });
+      },
+    };
+  },
+  // Sensor: keep quiet (stay at the room level). Touch: tap each thing that goes off, never the chair or the floor.
+  bot(inst, B, ctx) {
+    if (ctx.mode === 'sensor') return { mic: { rms: 0.008 + Math.abs(Math.sin(B.t * 3)) * 0.006 } };
+    const it = inst.items.find((q) => q.on && q.onT > 0.25);
+    return it ? { taps: [{ id: 5, x: it.x, y: it.y }] } : {};
+  },
+});
+
+/* ---- 79-g-clap.js ---- */
+// CLAP! — a circus seal claps a little rhythm, then cups a flipper to its ear: clap it back.
+// L1 the right number of claps (2–3); L2 three claps on time (±220 ms); L3 three or four (±160 ms). Too many = lost.
+// Touch version: tap anywhere to clap, same rules.
+const CLAP_TUNE = {
+  rel: 4,                 // an onset = rms jumps above ambient × this...
+  floor: 0.06,            // ...and above this, after being below it
+  refractory: 0.12,       // s before another onset can count
+  tol: [0, 0.22, 0.16],   // s of timing slack per level (L1 only counts)
+  grace: 0.75,            // beats of quiet after the last clap before it's a win (catches "too many")
+  early: 0.25,            // L1: claps count from this many beats before the echo starts
+};
+const CLAP_DEMO = 1, CLAP_ECHO = 4; // beats: the seal claps from beat 1, you echo from beat 4
+const CLAP_PATS = [
+  [[0, 1], [0, 1, 2], [0, 2], [0, 0.5, 1]],
+  [[0, 1, 1.5], [0, 0.5, 1.5], [0, 0.5, 1], [0, 1, 2]],
+  [[0, 0.5, 1, 2], [0, 1, 1.5, 2], [0, 0.5, 1.5, 2], [0, 0.5, 1, 1.5]],
+];
+const clap_x = (off) => 74 + (off / 2) * 212;
+
+function clap_star(g, x, y, r, fill, n = 10) {
+  g.beginPath();
+  for (let i = 0; i < n * 2; i++) { const a = (i / (n * 2)) * TAU - Math.PI / 2, q = i % 2 ? r * 0.55 : r; g.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); }
+  g.closePath(); Art.fillInk(g, fill, 4);
+}
+
+Games.add({
+  id: 'clap', verb: 'CLAP!', sensor: 'mic', look: '#C8223C',
+  create({ level, rng, mode }) {
+    const pats = CLAP_PATS[level - 1], pat = pats[Math.floor(rng() * pats.length)];
+    return {
+      status: 'playing', bg: '#C8223C', t: 0, pat, claps: [], lit: pat.map(() => false), mode, level,
+      above: false, lastOn: -9, demoAt: -9, clapK: 0, youK: 0, waitK: 0, endT: 0, why: '', fish: 0,
+      tgt(i, spb) { return (CLAP_ECHO + pat[i]) * spb; },
+      update(dt, f, B) {
+        this.t += dt;
+        this.clapK = Math.max(0, this.clapK - dt * 7); this.youK = Math.max(0, this.youK - dt * 4); this.waitK = Math.max(0, this.waitK - dt * 3);
+        this.beat = B.beat;
+        // The demonstration, on the beat.
+        pat.forEach((o, i) => {
+          if (!this.lit[i] && B.beat >= CLAP_DEMO + o) { this.lit[i] = true; this.clapK = 1; this.demoAt = B.t; Sound.sfx('swat'); }
+        });
+        if (this.status !== 'playing') { this.endT += dt; return; }
+        let hit = false;
+        if (mode === 'sensor') {
+          const thr = Math.max(f.mic.ambient * CLAP_TUNE.rel, CLAP_TUNE.floor), on = f.mic.rms > thr;
+          if (on && !this.above && B.t - this.lastOn >= CLAP_TUNE.refractory) { hit = true; this.lastOn = B.t; }
+          this.above = on;
+        } else hit = f.taps.length > 0;
+        const n = pat.length, tol = CLAP_TUNE.tol[level - 1], spb = B.spb;
+        const open = level === 1 ? (CLAP_ECHO - CLAP_TUNE.early) * spb : this.tgt(0, spb) - tol;
+        if (hit) {
+          if (B.t < open) { if (B.t - this.demoAt > 0.2) this.waitK = 1; } // clapping along with the demo: ignored
+          else {
+            const i = this.claps.length;
+            const ok = i < n && (level === 1 || Math.abs(B.t - this.tgt(i, spb)) <= tol);
+            this.claps.push({ b: B.beat, ok });
+            this.youK = 1;
+            if (mode === 'touch') Sound.sfx('swat'); // never in sensor mode: the mic would hear it
+            if (!ok) { this.status = 'lost'; this.why = i >= n ? 'TOO MANY!' : B.t < this.tgt(i, spb) ? 'TOO EARLY!' : 'TOO LATE!'; }
+          }
+        }
+        if (this.status === 'playing' && level >= 2) {
+          const i = this.claps.length;
+          if (i < n && B.t > this.tgt(i, spb) + tol) { this.status = 'lost'; this.why = 'TOO LATE!'; }
+        }
+        if (this.status === 'playing' && this.claps.length === n && B.beat - this.claps[n - 1].b >= CLAP_TUNE.grace) { this.status = 'won'; Sound.sfx('pop'); }
+      },
+      timeout() {
+        const ok = this.claps.length === pat.length && this.claps.every((c) => c.ok);
+        if (!ok) this.why = this.claps.length < pat.length ? 'MORE!' : 'NOPE!';
+        return ok ? 'won' : 'lost';
+      },
+      draw(g, B) {
+        const t = this.t, beat = B.beat, won = this.status === 'won', lost = this.status === 'lost';
+        fillView(g, '#C8223C');
+        // curtain folds
+        for (let x = -40; x < 420; x += 44) {
+          g.beginPath(); g.moveTo(x, VIEW.y0); g.bezierCurveTo(x + 14, 200, x - 10, 380, x + 8, 500); g.lineTo(x + 22, 500);
+          g.bezierCurveTo(x + 4, 380, x + 28, 200, x + 16, VIEW.y0); g.closePath(); g.fillStyle = '#9E1530'; g.fill();
+        }
+        g.save(); g.globalAlpha = 0.25; Art.dots(g, '#E8475E', 22, 2); g.restore();
+        // spotlight
+        const grd = g.createRadialGradient(180, 400, 20, 180, 400, 220);
+        grd.addColorStop(0, 'rgba(255,240,190,.5)'); grd.addColorStop(1, 'rgba(255,240,190,0)');
+        g.fillStyle = grd; g.fillRect(VIEW.x0, VIEW.y0, VIEW.x1 - VIEW.x0, VIEW.y1 - VIEW.y0);
+        // valance
+        g.fillStyle = '#8A1028'; g.fillRect(VIEW.x0, VIEW.y0, VIEW.x1 - VIEW.x0, 64 - VIEW.y0);
+        g.beginPath(); g.moveTo(VIEW.x0, 64); g.lineTo(VIEW.x1, 64); Art.ink(g, 5);
+        g.beginPath(); g.moveTo(VIEW.x0 - 40, 64); g.lineTo(VIEW.x0 - 40, 96);
+        for (let x = Math.floor(VIEW.x0 / 40) * 40 - 40; x < VIEW.x1; x += 40) g.quadraticCurveTo(x + 20, 122, x + 40, 96);
+        g.lineTo(VIEW.x1 + 40, 64); g.closePath(); Art.fillInk(g, '#FFC93C', 5);
+        g.fillStyle = '#E09A1E'; for (let x = Math.floor(VIEW.x0 / 40) * 40; x < VIEW.x1; x += 40) { Art.circle(g, x + 20, 104, 5); g.fill(); }
+        // stage
+        g.fillStyle = '#8A4B2A'; g.fillRect(VIEW.x0, 510, VIEW.x1 - VIEW.x0, VIEW.y1 - 510);
+        g.beginPath(); g.moveTo(VIEW.x0, 510); g.lineTo(VIEW.x1, 510); Art.ink(g, 5);
+        g.strokeStyle = 'rgba(27,21,48,.3)'; g.lineWidth = 3; for (let x = -20; x < 400; x += 46) { g.beginPath(); g.moveTo(x, 510); g.lineTo(x - 30, VIEW.y1); g.stroke(); }
+
+        // the track: where the claps go, and a playhead
+        const listening = beat >= CLAP_DEMO - 0.2 && beat < CLAP_ECHO - 0.5;
+        Art.rr(g, 48, 136, 264, 40, 20); g.fillStyle = 'rgba(27,21,48,.55)'; g.fill(); Art.ink(g, 4);
+        pat.forEach((o, i) => {
+          const x = clap_x(o);
+          if (this.lit[i] && beat < CLAP_ECHO - 0.5) { Art.circle(g, x, 156, 11); Art.fillInk(g, '#FFC93C', 3); }
+          else { Art.circle(g, x, 156, 10); g.lineWidth = 3; g.strokeStyle = 'rgba(255,248,232,.7)'; g.stroke(); }
+        });
+        for (const c of this.claps) {
+          const x = U.clamp(clap_x(c.b - CLAP_ECHO), 60, 300);
+          clap_star(g, x, 156, 13, c.ok ? '#7CFC9A' : '#FF4A5A', 6);
+        }
+        const ph = listening ? (beat - CLAP_DEMO) / 2 : (beat - CLAP_ECHO) / 2;
+        if ((listening || beat >= CLAP_ECHO - 0.25) && ph > -0.15 && ph < 1.15 && this.status === 'playing') {
+          const x = clap_x(ph * 2); g.beginPath(); g.moveTo(x, 132); g.lineTo(x, 180); g.lineWidth = 4; g.strokeStyle = '#FFF8E8'; g.stroke();
+        }
+        const cue = this.status !== 'playing' ? '' : beat < CLAP_ECHO - 0.5 ? (beat > 1.05 ? 'LISTEN…' : '') : 'YOUR TURN!';
+        if (cue) Art.text(g, cue, 180, 204, 20, { fill: cue === 'LISTEN…' ? '#FFF8E8' : '#FFC93C', scale: cue === 'LISTEN…' ? 1 : 1 + 0.08 * Math.sin(t * 10) });
+
+        // pedestal
+        Art.rr(g, 112, 474, 136, 50, 10); Art.fillInk(g, '#2E5BD9', 5);
+        g.fillStyle = '#FFC93C'; for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(122 + i * 26, 478); g.lineTo(135 + i * 26, 499); g.lineTo(122 + i * 26, 520); g.lineTo(130 + i * 26, 499); g.closePath(); g.fill(); }
+        Art.rr(g, 112, 474, 136, 50, 10); Art.ink(g, 5);
+        // the seal
+        const hop = won ? -Math.abs(Math.sin(this.endT * 9)) * 18 : 0, droop = lost ? U.clamp(this.endT / 0.3, 0, 1) : 0;
+        g.save(); g.translate(0, hop);
+        g.beginPath(); g.ellipse(180, 488, 58, 14, 0, 0, TAU); g.fillStyle = 'rgba(27,21,48,.3)'; g.fill();
+        for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(180 + sx * 40, 478, 30, 12, sx * 0.3, 0, TAU); Art.fillInk(g, '#5F7790', 4); }
+        g.beginPath(); g.moveTo(180, 300); g.bezierCurveTo(260, 310, 262, 470, 180, 480); g.bezierCurveTo(98, 470, 100, 310, 180, 300); Art.fillInk(g, '#7E97B0', 5);
+        g.beginPath(); g.ellipse(180, 412, 40, 56, 0, 0, TAU); g.fillStyle = '#B8C9D9'; g.fill();
+        // head
+        const hy = 268 + droop * 14 + (this.youK > 0 ? -this.youK * 6 : 0), cock = this.status === 'playing' && beat >= CLAP_ECHO - 0.5 ? 0.12 : 0;
+        g.save(); g.translate(180, hy); g.rotate(cock + droop * 0.15);
+        Art.circle(g, 0, 0, 48); Art.fillInk(g, '#7E97B0', 5);
+        const happy = won || this.clapK > 0.3;
+        for (const sx of [-1, 1]) {
+          if (happy) { g.beginPath(); g.arc(sx * 18, -8, 8, 1.1 * Math.PI, 1.9 * Math.PI); Art.ink(g, 4); }
+          else { Art.circle(g, sx * 18, -8, 9); g.fillStyle = INK; g.fill(); Art.circle(g, sx * 18 - 3, -11, 3); g.fillStyle = '#FFF8E8'; g.fill(); }
+          if (droop) { g.beginPath(); g.moveTo(sx * 28, -24 + droop * 2); g.lineTo(sx * 8, -18 - droop * 4); Art.ink(g, 4); }
+        }
+        for (const sx of [-1, 1]) { Art.circle(g, sx * 11, 20, 13); g.fillStyle = '#C9D6E2'; g.fill(); }
+        g.beginPath(); g.ellipse(0, 10, 10, 7, 0, 0, TAU); g.fillStyle = INK; g.fill();
+        g.lineWidth = 2; g.strokeStyle = INK;
+        for (const sx of [-1, 1]) for (const k of [-1, 0, 1]) { g.beginPath(); g.moveTo(sx * 16, 20 + k * 4); g.lineTo(sx * 40, 16 + k * 9); g.stroke(); }
+        g.beginPath();
+        if (lost) g.arc(0, 44, 8, 1.15 * Math.PI, 1.85 * Math.PI); else g.arc(0, 30, happy ? 9 : 6, 0.15 * Math.PI, 0.85 * Math.PI);
+        Art.ink(g, 4);
+        g.restore();
+        // flippers: rest out to the side, meet in front to clap; the right one cups the ear while listening
+        const clapNow = Math.max(this.clapK, won ? Math.abs(Math.sin(this.endT * 12)) : 0);
+        const ear = this.status === 'playing' && beat >= CLAP_ECHO - 0.5;
+        for (const sx of [-1, 1]) {
+          let a = U.lerp(sx * 1.9, -sx * 0.62, U.clamp(clapNow * 1.3, 0, 1));
+          if (ear && sx > 0) a = 0.25;
+          if (droop) a = sx * (2.4 + droop * 0.3);
+          const px = 180 + sx * 44, py = 372 + hop * 0;
+          g.save(); g.translate(px, py); g.rotate(a);
+          g.beginPath(); g.ellipse(0, -36, 15, 38, 0, 0, TAU); Art.fillInk(g, '#5F7790', 4);
+          g.restore();
+        }
+        if (ear) { g.save(); g.strokeStyle = '#FFF8E8'; g.lineWidth = 3; for (let i = 0; i < 2; i++) { g.globalAlpha = 0.5 + 0.5 * Math.sin(t * 8 - i); g.beginPath(); g.arc(262, 262, 16 + i * 10, -0.8, 0.8); g.stroke(); } g.restore(); }
+        g.restore();
+        if (this.clapK > 0.2) { g.save(); g.globalAlpha = this.clapK; clap_star(g, 180, 316 + hop, 22 + (1 - this.clapK) * 20, '#FFF8E8', 8); g.restore(); }
+        if (this.waitK > 0) { g.save(); g.globalAlpha = this.waitK; Art.text(g, 'WAIT!', 270, 236, 20, { fill: '#FFC93C', rot: 0.12 }); g.restore(); }
+        // your clap: a burst at the bottom
+        if (this.youK > 0) {
+          g.save(); g.globalAlpha = this.youK; clap_star(g, 180, 560, 26 + (1 - this.youK) * 24, '#FFC93C', 9);
+          Art.text(g, 'CLAP', 180, 560, 16, { fill: '#C8223C', w: 0, shadow: false }); g.restore();
+        }
+        if (won) {
+          // a fish for the seal
+          const k = U.clamp(this.endT / 0.5, 0, 1), fx = U.lerp(340, 180, k), fy = U.lerp(130, 296, k) - Math.sin(k * Math.PI) * 70;
+          if (k < 1) { g.save(); g.translate(fx, fy); g.rotate(k * 5); g.beginPath(); g.ellipse(0, 0, 18, 9, 0, 0, TAU); Art.fillInk(g, '#FF8A3D', 3); g.beginPath(); g.moveTo(16, 0); g.lineTo(28, -9); g.lineTo(28, 9); g.closePath(); Art.fillInk(g, '#FF8A3D', 3); g.restore(); }
+          Art.text(g, 'BRAVO!', 180, 236, 40, { scale: U.ease.outBack(U.clamp(this.endT / 0.3, 0, 1)), rot: -0.06, fill: '#FFC93C' });
+        }
+        if (lost && this.why) Art.text(g, this.why, 180, 236, 34, { scale: U.ease.outBack(U.clamp(this.endT / 0.3, 0, 1)), rot: -0.06, maxW: 300, fill: '#FFF8E8' });
+      },
+    };
+  },
+  // Claps right on each target beat: a 50 ms burst on the mic, or one tap.
+  bot(inst, B, ctx) {
+    const s = ctx.state; s.k = s.k || 0;
+    if (s.k >= inst.pat.length) return {};
+    const tgt = (CLAP_ECHO + inst.pat[s.k]) * B.spb + 0.01;
+    if (B.t < tgt) return {};
+    if (ctx.mode === 'touch') { s.k++; return { taps: [{ id: 7, x: 180, y: 420 }] }; }
+    if (B.t < tgt + 0.05) return { mic: { rms: 0.3 } };
+    s.k++; return {};
+  },
+});
+
+/* ---- 7A-g-hum.js ---- */
+// HUM! — a shy flower on the windowsill grows while you hum to it. Keep your voice inside the green band;
+// too loud for a moment and its petals blow off. L1 1.2 s in the band, L3 1.5 s and a narrower band.
+// Touch version: press and hold anywhere to raise the level (like a pump), let go to lower it.
+const HUM_TUNE = {
+  lo: [2.5, 2.7, 3],          // band floor = ambient × this...
+  hi: [7, 6.2, 5.5],          // band ceiling = ambient × this...
+  loAbs: 0.02,                // ...but the floor is never below this rms (silent rooms)
+  minW: [0.045, 0.038, 0.03], // ...and the band never narrower than this (rms)
+  need: [1.2, 1.35, 1.5],     // s in the band, cumulative
+  boil: 0.3,                  // s continuously above the band = lost
+  attack: 30, release: 6,     // level envelope (1/s): quick to rise, slow to fall, so shouty bursts read as loud
+};
+const HUM_TOUCH = { lo: [0.4, 0.44, 0.48], hi: [0.74, 0.7, 0.66], up: 1.1, down: 0.8, pump: 0.05 };
+const HUM_M = { x: 318, y0: 470, h: 300 }; // the level meter
+
+Games.add({
+  id: 'hum', verb: 'HUM!', sensor: 'mic', look: '#2F8F83',
+  create({ level, mode }) {
+    const L = level - 1;
+    return {
+      status: 'playing', bg: '#2F8F83', t: 0, lvl: 0.008, v: 0, bl: HUM_TOUCH.lo[L], bh: HUM_TOUCH.hi[L], lo: 0, hi: 0,
+      prog: 0, need: HUM_TUNE.need[L], overT: 0, inT: 0, endT: 0, mode, level, held: false, notes: [], noteT: 0, hold: null,
+      update(dt, f) {
+        this.t += dt;
+        for (const n of this.notes) n.t += dt;
+        this.notes = this.notes.filter((n) => n.t < 1.4);
+        if (this.status !== 'playing') { this.endT += dt; return; }
+        if (mode === 'sensor') {
+          const amb = f.mic.ambient;
+          this.lo = Math.max(amb * HUM_TUNE.lo[L], HUM_TUNE.loAbs);
+          this.hi = Math.max(amb * HUM_TUNE.hi[L], this.lo + HUM_TUNE.minW[L]);
+          this.lvl = U.lerp(this.lvl, f.mic.rms, Math.min(1, dt * (f.mic.rms > this.lvl ? HUM_TUNE.attack : HUM_TUNE.release)));
+          const top = this.hi * 1.5;
+          this.v = U.clamp(this.lvl / top, 0, 1.05); this.bl = this.lo / top; this.bh = this.hi / top;
+        } else {
+          this.held = f.pointers.length > 0;
+          if (f.pointers[0]) this.hold = { x: f.pointers[0].x, y: f.pointers[0].y };
+          this.v = U.clamp(this.v + (this.held ? HUM_TOUCH.up : -HUM_TOUCH.down) * dt + f.taps.length * HUM_TOUCH.pump, 0, 1.05);
+        }
+        const inBand = this.v >= this.bl && this.v <= this.bh, over = this.v > this.bh;
+        this.inT = inBand ? this.inT + dt : 0;
+        this.overT = over ? this.overT + dt : 0;
+        if (inBand) {
+          this.prog += dt; this.noteT -= dt;
+          if (this.noteT <= 0) { this.noteT = 0.22; this.notes.push({ t: 0, x: 150 + Math.random() * 30, s: Math.random() < 0.5 ? 1 : -1 }); }
+        }
+        if (this.overT > HUM_TUNE.boil) { this.status = 'lost'; Sound.sfx('puff'); }
+        else if (this.prog >= this.need) { this.status = 'won'; if (mode === 'touch') Sound.sfx('giggle'); }
+      },
+      draw(g) {
+        const t = this.t, won = this.status === 'won', lost = this.status === 'lost';
+        const p = U.clamp(this.prog / this.need, 0, 1), strain = U.clamp(this.overT / HUM_TUNE.boil, 0, 1);
+        fillView(g, '#2F8F83');
+        g.save(); g.globalAlpha = 0.35; Art.dots(g, '#3FA89A', 20, 2.4); g.restore();
+        // window
+        Art.rr(g, 40, 116, 220, 300, 110); Art.fillInk(g, '#BFE8F2', 6);
+        Art.circle(g, 196, 196, 30); g.fillStyle = '#FFE16B'; g.fill();
+        g.fillStyle = '#FFF8E8';
+        for (const [x, y, s] of [[90, 250, 1], [200, 300, 0.8]]) { g.beginPath(); g.ellipse(x, y, 30 * s, 12 * s, 0, 0, TAU); g.ellipse(x + 20 * s, y - 8 * s, 20 * s, 12 * s, 0, 0, TAU); g.fill(); }
+        g.beginPath(); g.moveTo(150, 118); g.lineTo(150, 414); g.moveTo(42, 270); g.lineTo(258, 270); Art.ink(g, 5);
+        // sill
+        Art.rr(g, VIEW.x0 - 10, 500, VIEW.x1 - VIEW.x0 + 20, 26, 4); Art.fillInk(g, '#F2E2C4', 5);
+        g.fillStyle = '#25726A'; g.fillRect(VIEW.x0, 526, VIEW.x1 - VIEW.x0, VIEW.y1 - 526);
+        // stem grows with progress, leans back when it's too loud
+        const fx = 150, potY = 440, sh = Math.max(lost ? 84 : 56, 60 + (won ? 1 : p) * 150 - (lost ? U.clamp(this.endT / 0.4, 0, 1) * 40 : 0));
+        const lean = lost ? 0.45 + 0.65 * U.clamp(this.endT / 0.4, 0, 1) : strain * 0.45 + Math.sin(t * (this.inT > 0 ? 6 : 2)) * 0.05;
+        const hx = fx + Math.sin(lean) * sh * 0.9, hy = potY - Math.cos(lean) * sh;
+        g.beginPath(); g.moveTo(fx, potY); g.quadraticCurveTo(fx - 10, potY - sh * 0.5, hx, hy); Art.ink(g, 12);
+        g.beginPath(); g.moveTo(fx, potY); g.quadraticCurveTo(fx - 10, potY - sh * 0.5, hx, hy); g.lineWidth = 6; g.strokeStyle = '#5DBB4A'; g.stroke();
+        for (const [k, sx] of [[0.35, -1], [0.6, 1]]) {
+          if (sh * k < 30) continue;
+          const lx = U.lerp(fx, hx, k) - 5, ly = potY - sh * k;
+          g.save(); g.translate(lx, ly); g.rotate(sx * 0.7 + lean * 0.5);
+          g.beginPath(); g.ellipse(sx * 18, 0, 20, 9, 0, 0, TAU); Art.fillInk(g, '#5DBB4A', 4); g.restore();
+        }
+        // flower head: petals open with progress; blown away on a loss
+        const open = won ? 1 : p, pr = 14 + open * 22, np = 8;
+        g.save(); g.translate(hx, hy); g.rotate(lean * 0.6);
+        for (let i = 0; i < np; i++) {
+          const a = (i / np) * TAU + t * (won ? 1.5 : 0.2);
+          let ox = 0, oy = 0;
+          if (lost) { const k = Math.min(this.endT, 1.2); ox = (60 + i * 14) * k; oy = -50 * k + Math.sin(i * 2.1 + k * 8) * 16 + i * 8 * k; }
+          else if (strain > 0) { ox = Math.sin(t * 50 + i) * 3 * strain; }
+          g.save(); g.translate(ox, oy); g.rotate(a + (lost ? this.endT * (3 + i) : 0));
+          g.beginPath(); g.ellipse(0, -pr * 0.75 - 6, 11 + open * 4, pr * 0.55, 0, 0, TAU);
+          Art.fillInk(g, i % 2 ? '#FF7FB0' : '#FF5F93', 3.5);
+          g.restore();
+        }
+        Art.circle(g, 0, 0, 22); Art.fillInk(g, lost ? '#C9A64A' : '#FFD23F', 4);
+        // face
+        const ex = strain > 0.2 || lost ? 1 : 0;
+        for (const sx of [-1, 1]) {
+          if (ex) { g.beginPath(); g.moveTo(sx * 11 - 4, -8); g.lineTo(sx * 7, -4); g.lineTo(sx * 11 - 4 + (sx < 0 ? 8 : 0), 0); Art.ink(g, 3); }
+          else if (this.inT > 0 || won) { g.beginPath(); g.arc(sx * 8, -4, 4.5, 1.1 * Math.PI, 1.9 * Math.PI); Art.ink(g, 3); }
+          else { Art.circle(g, sx * 8, -4, 3.5); g.fillStyle = INK; g.fill(); }
+        }
+        if (this.inT > 0 || won) { g.beginPath(); g.ellipse(0, 8, 5, 6 + Math.sin(t * 14) * 1.5, 0, 0, TAU); g.fillStyle = INK; g.fill(); }
+        else if (lost || strain > 0.2) { g.beginPath(); g.ellipse(0, 9, 8, 5, 0, 0, TAU); g.fillStyle = INK; g.fill(); }
+        else { g.beginPath(); g.moveTo(-5, 8); g.lineTo(5, 8); Art.ink(g, 3); }
+        g.beginPath(); g.ellipse(-13, 4, 4, 2.5, 0, 0, TAU); g.ellipse(13, 4, 4, 2.5, 0, 0, TAU); g.fillStyle = 'rgba(255,95,147,.6)'; g.fill();
+        g.restore();
+        // pot
+        g.beginPath(); g.moveTo(fx - 50, 432); g.lineTo(fx + 50, 432); g.lineTo(fx + 38, 502); g.lineTo(fx - 38, 502); g.closePath(); Art.fillInk(g, '#E07A4A', 5);
+        Art.rr(g, fx - 56, 424, 112, 22, 6); Art.fillInk(g, '#EE8E5C', 5);
+        // music notes while it sings
+        for (const n of this.notes) {
+          const k = n.t / 1.4, nx = hx + 20 + k * 70 + Math.sin(k * 8) * 10 * n.s, ny = hy - 20 - k * 110;
+          g.save(); g.globalAlpha = 1 - k; g.translate(nx, ny);
+          g.beginPath(); g.ellipse(0, 0, 7, 5, -0.4, 0, TAU); g.fillStyle = '#FF5F93'; g.fill(); Art.ink(g, 2.5);
+          g.beginPath(); g.moveTo(6, -2); g.lineTo(6, -22); g.lineTo(14, -16); Art.ink(g, 3);
+          g.restore();
+        }
+        // wind lines when too loud
+        if (strain > 0 && !lost) {
+          g.save(); g.globalAlpha = strain; g.strokeStyle = '#FFF8E8'; g.lineWidth = 4; g.lineCap = 'round';
+          for (let i = 0; i < 4; i++) { const y = hy - 40 + i * 26, x = 40 + ((t * 600 + i * 70) % 120); g.beginPath(); g.moveTo(x, y); g.lineTo(x + 40, y); g.stroke(); }
+          g.restore();
+        }
+        // the level meter with the band
+        const M = HUM_M, yv = (v) => M.y0 - U.clamp(v, 0, 1) * M.h;
+        Art.rr(g, M.x - 20, yv(1) - 6, 40, M.h + 12, 18); Art.fillInk(g, '#1F5F58', 5);
+        g.save(); Art.rr(g, M.x - 14, yv(1), 28, M.h, 12); g.clip();
+        g.fillStyle = '#FF4A5A'; g.fillRect(M.x - 14, yv(1), 28, yv(this.bh) - yv(1));
+        g.fillStyle = (this.inT > 0 || won) ? '#9CFF6E' : '#5DBB4A'; g.fillRect(M.x - 14, yv(this.bh), 28, yv(this.bl) - yv(this.bh));
+        g.fillStyle = 'rgba(255,248,232,.85)'; g.fillRect(M.x - 6, yv(this.v), 12, M.y0 - yv(this.v));
+        g.restore();
+        Art.rr(g, M.x - 14, yv(1), 28, M.h, 12); Art.ink(g, 4);
+        const my = yv(this.v);
+        g.beginPath(); g.moveTo(M.x - 30, my - 9); g.lineTo(M.x - 16, my); g.lineTo(M.x - 30, my + 9); g.closePath(); Art.fillInk(g, '#FFF8E8', 3);
+        // progress pips under the meter
+        Art.rr(g, M.x - 20, 486, 40, 10, 5); g.fillStyle = 'rgba(27,21,48,.4)'; g.fill();
+        if (p > 0) { Art.rr(g, M.x - 20, 486, 40 * p, 10, 5); g.fillStyle = '#FFD23F'; g.fill(); }
+        Art.rr(g, M.x - 20, 486, 40, 10, 5); Art.ink(g, 3);
+        // touch: the pump under your finger
+        if (mode === 'touch' && this.held && this.hold && this.status === 'playing') {
+          g.save(); g.globalAlpha = 0.6; Art.circle(g, this.hold.x, this.hold.y, 30 + Math.sin(t * 20) * 4); g.lineWidth = 5; g.strokeStyle = '#FFF8E8'; g.stroke(); g.restore();
+        }
+        if (won) Art.text(g, 'LA LA LA!', 150, 160, 36, { scale: U.ease.outBack(U.clamp(this.endT / 0.3, 0, 1)), rot: -0.06, fill: '#FFD23F' });
+        if (lost) Art.text(g, 'TOO LOUD!', 150, 160, 36, { scale: U.ease.outBack(U.clamp(this.endT / 0.3, 0, 1)), rot: -0.06, maxW: 260, fill: '#FF5FA2' });
+      },
+    };
+  },
+  // Sensor: hum at the middle of the band. Touch: hold when below the middle, let go above it.
+  bot(inst, B, ctx) {
+    if (B.t < ctx.delay) return {};
+    if (ctx.mode === 'sensor') return { mic: { rms: inst.hi ? (inst.lo + inst.hi) / 2 : 0.04 } };
+    return inst.v < (inst.bl + inst.bh) / 2 ? { pointers: [{ id: 9, x: 180, y: 560 }] } : {};
+  },
+});
+
+/* ---- 7B-g-flip.js ---- */
+// FLIP! — a pancake with a face sizzles in the pan. Flick your wrist (the phone's top edge) to toss it over.
+// L1 one flip, L2 two, L3 two but only while the golden NOW! ring is lit (too early splats raw batter on the
+// screen, too late burns it). Touch version: swipe up fast anywhere.
+const FLIP_TUNE = {
+  flick: [300, 320, 340], // |gyro.b| deg/s that counts as a wrist flick, per level
+  rearm: 120,             // the gyro must settle below this before the next flick counts
+  swipeV: 900,            // touch: upward finger speed, px/s...
+  swipeMin: 36,           // ...over at least this many px of upward drag
+  swipeWin: 0.1,          // ...measured over this many seconds of finger history
+  air: 0.9,               // beats in the air per toss
+  winGap: [0.7, 1.1],     // L3: beats from landing (or the start) until the window lights, random in range
+  winLen: 1.8,            // L3: beats the window stays lit
+};
+
+Games.add({
+  id: 'flip', verb: 'FLIP!', sensor: 'shake', look: '#D93A3A',
+  create({ level, rng, mode }) {
+    const need = level === 1 ? 1 : 2, timed = level === 3;
+    const gap = () => FLIP_TUNE.winGap[0] + rng() * (FLIP_TUNE.winGap[1] - FLIP_TUNE.winGap[0]);
+    const w0 = 0.35 + gap();
+    return {
+      status: 'playing', bg: '#D93A3A', t: 0, beat: 0, after: 0, need, timed, flips: 0,
+      state: 'rest', armed: false, air: null, base: 0, land: 9, lostKind: null,
+      cookA: 0.08, cookB: 0.9, winOpen: timed ? w0 : -1, winClose: timed ? w0 + FLIP_TUNE.winLen : 99,
+      hist: new Map(), used: new Set(), pan: 0,
+      smoke: [], drips: Array.from({ length: 6 }, (_, i) => ({ x: -70 + i * 28 + rng() * 10, len: 20 + rng() * 40 })),
+      lit(beat) { return !this.timed || (beat >= this.winOpen && beat < this.winClose); },
+      update(dt, f, B) {
+        this.t += dt; this.beat = B.beat; this.land += dt; this.pan = Math.max(0, this.pan - dt * 5);
+        if (Math.random() < dt * 4 && this.state === 'rest') Sound.sfx('fizz');
+        if (this.status !== 'playing') {
+          this.after += dt;
+          if (this.status === 'lost' && this.lostKind !== 'raw' && Math.random() < dt * 14) this.smoke.push({ x: 180 + (Math.random() - 0.5) * 120, y: 410, r: 14 + Math.random() * 10, t: 0 });
+          for (const s of this.smoke) { s.t += dt; s.y -= 90 * dt; s.r += 20 * dt; }
+          this.smoke = this.smoke.filter((s) => s.t < 1.6);
+          return;
+        }
+        // Rest: the side facing down browns.
+        if (this.state === 'rest') { if (Math.cos(this.base) > 0) this.cookB += dt * 1.6; else this.cookA += dt * 1.6; }
+        // Input: a flick (sensor) or a fast upward swipe (touch).
+        let toss = false;
+        if (mode === 'sensor') {
+          const b = Math.abs(f.gyro.b || 0);
+          if (b < FLIP_TUNE.rearm) this.armed = true;
+          if (this.armed && b > FLIP_TUNE.flick[level - 1] && this.state === 'rest') { toss = true; this.armed = false; }
+        } else {
+          const seen = new Set();
+          for (const p of f.pointers) {
+            seen.add(p.id);
+            const h = this.hist.get(p.id) || [];
+            h.push({ t: this.t, x: p.x, y: p.y });
+            while (h.length > 2 && this.t - h[1].t >= FLIP_TUNE.swipeWin) h.shift();
+            this.hist.set(p.id, h);
+            const o = h[0], dy = o.y - p.y, dtt = Math.max(1 / 120, this.t - o.t);
+            if (this.state === 'rest' && !this.used.has(p.id) && dy >= FLIP_TUNE.swipeMin && dy / dtt >= FLIP_TUNE.swipeV) { toss = true; this.used.add(p.id); }
+          }
+          for (const id of [...this.hist.keys()]) if (!seen.has(id)) { this.hist.delete(id); this.used.delete(id); }
+        }
+        if (toss) {
+          if (!this.lit(B.beat)) { this.status = 'lost'; this.lostKind = 'raw'; Sound.sfx('splash'); return; }
+          this.state = 'air'; this.air = { b0: B.beat }; this.pan = 1; Sound.sfx('whiff');
+        }
+        if (this.state === 'air') {
+          const u = (B.beat - this.air.b0) / FLIP_TUNE.air;
+          if (u >= 1) {
+            this.state = 'rest'; this.base += Math.PI; this.flips++; this.land = 0; this.air = null; Sound.sfx('swat');
+            if (this.flips >= this.need) { if (Math.cos(this.base) > 0) this.cookA = Math.max(this.cookA, 0.9); else this.cookB = Math.max(this.cookB, 0.9); this.status = 'won'; Sound.sfx('giggle'); return; }
+            if (this.timed) { this.winOpen = B.beat + gap(); this.winClose = this.winOpen + FLIP_TUNE.winLen; }
+          }
+        }
+        if (this.timed && this.state === 'rest' && B.beat >= this.winClose) { this.status = 'lost'; this.lostKind = 'burnt'; Sound.sfx('alarm'); }
+      },
+      timeout() { this.lostKind = this.lostKind || 'burnt'; return 'lost'; },
+      draw(g) { flipDraw(g, this, mode); },
+    };
+  },
+  bot(inst, B, ctx) {
+    if (B.t < ctx.delay) return {};
+    const s = ctx.state;
+    // Wait for the window, plus a human-ish reaction time, before tossing.
+    const ready = inst.state === 'rest' && inst.status === 'playing' && (!inst.timed || (B.beat >= inst.winOpen + 0.12 / B.spb && B.beat < inst.winClose));
+    if (ctx.mode === 'sensor') return { gyro: { b: ready && inst.armed ? 520 : 0 } };
+    // Touch: one fast stroke up from the bottom of the stove, lift, repeat.
+    if (s.stroke) {
+      s.stroke.y -= 2400 * (B.t - s.stroke.t); s.stroke.t = B.t;
+      if (s.stroke.y < 300 || inst.state === 'air') { s.stroke = null; return { pointers: [] }; }
+      return { pointers: [{ id: s.stroke.id, x: 180, y: s.stroke.y }] };
+    }
+    if (ready) { s.n = (s.n || 0) + 1; s.stroke = { id: 40 + s.n, y: 540, t: B.t }; return { pointers: [{ id: s.stroke.id, x: 180, y: 540 }] }; }
+    return { pointers: [] };
+  },
+});
+
+// Pale batter to golden to charcoal.
+function flipCook(k, burnt) {
+  if (burnt) return '#3A2418';
+  const a = [246, 228, 170], b = [222, 150, 60];
+  const m = U.clamp(k, 0, 1);
+  return `rgb(${a.map((v, i) => Math.round(U.lerp(v, b[i], m))).join(',')})`;
+}
+
+function flipDraw(g, s, mode) {
+  const t = s.t, won = s.status === 'won', lost = s.status === 'lost', raw = s.lostKind === 'raw', burnt = lost && !raw;
+  fillView(g, '#D93A3A');
+  g.save(); g.globalAlpha = 0.5; Art.dots(g, '#C02B30', 20, 3); g.restore();
+  // wall tiles band + stove top
+  g.fillStyle = '#F4EBDD';
+  for (let x = Math.floor(VIEW.x0 / 40) * 40; x < VIEW.x1; x += 40) for (let r = 0; r < 2; r++) if (((x / 40) + r) % 2 === 0) g.fillRect(x, 454 + r * 20, 40, 20);
+  g.fillStyle = '#2A2433'; g.fillRect(VIEW.x0, 494, VIEW.x1 - VIEW.x0, VIEW.y1 - 494);
+  g.beginPath(); g.moveTo(VIEW.x0, 494); g.lineTo(VIEW.x1, 494); Art.ink(g, 5);
+  // burner flames
+  for (let i = 0; i < 7; i++) {
+    const fx = 110 + i * 23, fh = 14 + Math.sin(t * 20 + i * 1.7) * 5 + (burnt ? 8 : 0);
+    g.beginPath(); g.moveTo(fx - 7, 498); g.quadraticCurveTo(fx - 4, 498 - fh, fx, 492 - fh); g.quadraticCurveTo(fx + 4, 498 - fh, fx + 7, 498); g.closePath();
+    g.fillStyle = burnt ? '#FF8A2A' : '#4FC3FF'; g.fill(); g.lineWidth = 3; g.strokeStyle = INK; g.stroke();
+  }
+  // L3 window ring
+  if (s.timed && s.status === 'playing' && s.state === 'rest') {
+    const on = s.lit(s.beat);
+    if (on) {
+      const k = 1 - (s.beat - s.winOpen) / (s.winClose - s.winOpen);
+      g.save(); g.globalAlpha = 0.35 + 0.25 * Math.sin(t * 18);
+      g.beginPath(); g.ellipse(180, 440, 150, 62, 0, 0, TAU); g.fillStyle = '#FFD23F'; g.fill(); g.restore();
+      g.beginPath(); g.ellipse(180, 440, 150, 62, 0, -Math.PI / 2, -Math.PI / 2 + TAU * k); g.lineWidth = 9; g.strokeStyle = '#FFD23F'; g.stroke();
+      Art.text(g, 'NOW!', 180, 250, 54, { fill: '#FFD23F', rot: -0.06, scale: 1 + 0.06 * Math.sin(t * 20) });
+    } else Art.text(g, 'wait…', 180, 260, 30, { fill: '#FFF8E8', rot: -0.04 });
+  }
+  // flip counter
+  if (s.need > 1) for (let i = 0; i < s.need; i++) {
+    const x = 180 + (i - (s.need - 1) / 2) * 56;
+    g.beginPath(); g.ellipse(x, 150, 22, 10, 0, 0, TAU); Art.fillInk(g, i < s.flips ? '#DE963C' : 'rgba(255,248,232,.25)', 4);
+  }
+  // pan (bobs up on a toss)
+  const py = 440 - s.pan * 16, prot = -s.pan * 0.06;
+  g.save(); g.translate(180, py); g.rotate(prot);
+  Art.rr(g, 112, -12, 66, 22, 10); Art.fillInk(g, '#5B3A26', 5);
+  g.beginPath(); g.ellipse(0, 8, 132, 44, 0, 0, TAU); Art.fillInk(g, '#2F2C3A', 6);
+  g.beginPath(); g.ellipse(0, 0, 118, 34, 0, 0, TAU); Art.fillInk(g, '#4A4659', 4);
+  g.restore();
+
+  // the pancake
+  let x = 180, y = py - 12, ang = s.base, spin = 0, sc = 1;
+  if (s.state === 'air' && s.air && s.status === 'playing') {
+    const u = U.clamp((s.beat - s.air.b0) / FLIP_TUNE.air, 0, 1);
+    y -= 250 * 4 * u * (1 - u); ang += Math.PI * u; spin = Math.sin(u * Math.PI) * 0.25;
+  }
+  if (raw) {
+    // Shoots up and slaps onto the glass, then drips.
+    const k = U.clamp(s.after / 0.28, 0, 1);
+    if (k < 1) { y = U.lerp(py - 12, 230, U.ease.outCubic(k)); sc = 1 + k * 0.8; ang = k * 1.2; }
+    else {
+      g.save(); g.translate(180, 230);
+      g.fillStyle = '#F6E4AA';
+      for (const d of s.drips) { const L = d.len * U.clamp((s.after - 0.28) * 2, 0, 1.4); Art.rr(g, d.x - 7, 0, 14, 40 + L, 7); g.fill(); Art.ink(g, 4); }
+      g.beginPath();
+      for (let i = 0; i <= 16; i++) { const a = (i / 16) * TAU, r = 1 + 0.12 * Math.sin(i * 2.7); g.lineTo(Math.cos(a) * 150 * r, Math.sin(a) * 92 * r); }
+      g.closePath(); Art.fillInk(g, '#F6E4AA', 6);
+      for (const [bx, by, br] of [[-60, -20, 9], [40, -36, 7], [70, 22, 10], [-20, 34, 6]]) { Art.circle(g, bx, by, br); g.fillStyle = '#E6CF8C'; g.fill(); }
+      flipFace(g, 0, 0, 1.5, 'dizzy', t);
+      g.restore();
+      Art.text(g, 'RAW!', 180, 380, 56, { fill: '#FFF8E8', rot: 0.08 });
+      return;
+    }
+  }
+  const c = Math.cos(ang), up = c > 0 ? s.cookA : s.cookB;
+  const squash = s.land < 0.15 ? 1 - Math.sin((s.land / 0.15) * Math.PI) * 0.18 : 1;
+  g.save(); g.translate(x, y); g.rotate(spin); g.scale(sc * (2 - squash), sc * squash);
+  const rx = 88, ry = Math.max(4, 28 * Math.abs(c)), th = 9;
+  g.beginPath(); g.ellipse(0, th, rx, ry, 0, 0, TAU); Art.fillInk(g, burnt ? '#24150E' : '#B5702F', 5);
+  g.fillRect(-rx, 0, rx * 2, th);
+  g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); Art.fillInk(g, flipCook(up, burnt), 5);
+  if (Math.abs(c) > 0.35) {
+    g.save(); g.scale(1, Math.abs(c));
+    // batter bubbles on the raw face, brown flecks on the cooked one
+    g.fillStyle = up < 0.5 ? 'rgba(255,255,255,.55)' : 'rgba(140,80,30,.45)';
+    for (const [bx, by, br] of [[-50, -6, 5], [52, 4, 4], [30, -14, 3], [-28, 12, 4]]) { Art.circle(g, bx, by, br); g.fill(); }
+    const face = burnt ? 'x' : won ? 'happy' : s.state === 'air' ? 'shock' : 'worry';
+    flipFace(g, 0, 0, 1, face, t);
+    g.restore();
+  }
+  g.restore();
+  if (won) {
+    // a pat of butter lands on top
+    const k = U.clamp(s.after / 0.25, 0, 1);
+    const bx = 222, by = U.lerp(150, y - 6, U.ease.outCubic(k));
+    Art.rr(g, bx - 18, by - 12, 36, 20, 4); Art.fillInk(g, '#FFE873', 4);
+    if (s.after > 0.2) for (let i = 0; i < 6; i++) {
+      const a = i / 6 * TAU + t * 2, r = 120 + Math.sin(t * 6 + i) * 8;
+      Art.text(g, '✦', 180 + Math.cos(a) * r, 400 + Math.sin(a) * r * 0.5, 22, { fill: '#FFD23F', w: 4, shadow: false });
+    }
+  }
+  if (burnt) {
+    for (const p of s.smoke) { g.save(); g.globalAlpha = 0.75 * (1 - p.t / 1.6); Art.circle(g, p.x, p.y, p.r); g.fillStyle = '#5C5566'; g.fill(); Art.ink(g, 3); g.restore(); }
+    Art.text(g, 'BURNT!', 180, 220, 52, { fill: '#2A2433', rot: -0.06, scale: U.ease.outBack(U.clamp(s.after / 0.3, 0, 1)) });
+  }
+  // How-to hint before the first toss
+  if (s.status === 'playing' && s.flips === 0 && s.state === 'rest' && s.beat > 0.9 && s.beat < 4 && !(s.timed && !s.lit(s.beat))) flipHint(g, mode, s.beat);
+}
+
+function flipFace(g, x, y, k, kind, t) {
+  g.save(); g.translate(x, y); g.scale(k, k);
+  g.fillStyle = INK; g.strokeStyle = INK; g.lineWidth = 4; g.lineCap = 'round';
+  if (kind === 'x' || kind === 'dizzy') {
+    for (const ex of [-22, 22]) {
+      if (kind === 'x') { g.beginPath(); g.moveTo(ex - 7, -10); g.lineTo(ex + 7, 2); g.moveTo(ex + 7, -10); g.lineTo(ex - 7, 2); g.stroke(); }
+      else { g.beginPath(); for (let i = 0; i < 18; i++) { const a = i * 0.7 + t * 6, r = i * 0.5; g.lineTo(ex + Math.cos(a) * r, -4 + Math.sin(a) * r); } g.stroke(); }
+    }
+    g.beginPath(); g.moveTo(-12, 14); g.quadraticCurveTo(0, 8, 12, 14); g.stroke();
+  } else if (kind === 'happy') {
+    for (const ex of [-22, 22]) { g.beginPath(); g.arc(ex, -2, 7, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+    g.beginPath(); g.arc(0, 4, 12, 0.2, Math.PI - 0.2); g.stroke();
+  } else if (kind === 'shock') {
+    for (const ex of [-22, 22]) { Art.circle(g, ex, -6, 8); g.fillStyle = '#FFF8E8'; g.fill(); g.stroke(); Art.circle(g, ex, -6, 3.5); g.fillStyle = INK; g.fill(); }
+    g.beginPath(); g.ellipse(0, 12, 7, 9, 0, 0, TAU); g.fill();
+  } else {
+    for (const ex of [-22, 22]) { Art.circle(g, ex, -4, 4.5); g.fill(); }
+    g.beginPath(); for (let i = 0; i <= 6; i++) g.lineTo(-12 + i * 4, 12 + (i % 2 ? -3 : 3)); g.stroke();
+  }
+  g.restore();
+}
+
+// A ghost finger swiping up (touch) or a little phone flicking its top edge (sensor).
+function flipHint(g, mode, beat) {
+  const k = (beat % 1);
+  g.save(); g.globalAlpha = 0.7 * (1 - Math.max(0, k - 0.7) * 3);
+  if (mode === 'touch') {
+    const y = 560 - 200 * U.ease.outCubic(Math.min(1, k * 1.5));
+    g.beginPath(); g.moveTo(180, 560); g.lineTo(180, y); g.lineWidth = 8; g.strokeStyle = '#FFF8E8'; g.setLineDash([4, 14]); g.stroke(); g.setLineDash([]);
+    Art.circle(g, 180, y, 18); Art.fillInk(g, '#FFF8E8', 4);
+  } else {
+    g.translate(300, 300); g.rotate(-0.9 * Math.sin(Math.min(1, k * 2.2) * Math.PI));
+    Art.rr(g, -16, -50, 32, 56, 7); Art.fillInk(g, '#FFF8E8', 4);
+    Art.rr(g, -10, -42, 20, 36, 3); g.fillStyle = '#2438D6'; g.fill();
+  }
+  g.restore();
+}
+
+/* ---- 7C-g-wave.js ---- */
+// WAVE! — flies (L1), bees (L2) or a ghost with flies (L3) are sitting on the selfie lens, eyeing your cake.
+// Wave a hand in front of the front camera to shoo them (camera motion only, never an image).
+// SHOO! (touch version): the flies buzz around the picnic; swipe through each one to bat it off-screen.
+const WAVE_TUNE = {
+  rel: 3, abs: 0.03,       // waving = camera motion above calibrated still-noise × rel + abs
+  need: [0.6, 0.8, 1.0],   // seconds of waving (cumulative) per level
+  hitR: 40,                // SHOO!: a finger's path segment within this many px of a fly bats it
+  minSeg: 3,               // ...and the finger must actually be moving (px per frame)
+  flies: [2, 3, 4],        // SHOO!: flies per level
+};
+
+Games.add({
+  id: 'wave', verb: 'WAVE!', verbTouch: 'SHOO!', sensor: 'cam', look: '#2F9E5E',
+  create(o) { return o.mode === 'sensor' ? waveCreateCam(o) : waveCreateShoo(o); },
+  bot(inst, B, ctx) {
+    if (B.t < ctx.delay) return {};
+    if (inst.kind === 'cam') return { cam: { motion: 0.2 } };
+    // SHOO!: finger stays down and chases the nearest fly at a fast-human speed.
+    const s = ctx.state;
+    if (!s.p) { s.p = { x: 180, y: 540 }; s.lastT = B.t; return { pointers: [{ id: 21, x: s.p.x, y: s.p.y }] }; }
+    const live = inst.flies.filter((q) => !q.gone);
+    const step = 2200 * (B.t - s.lastT); s.lastT = B.t;
+    if (live.length) {
+      const q = live.reduce((a, b) => (U.dist(a.x, a.y, s.p.x, s.p.y) < U.dist(b.x, b.y, s.p.x, s.p.y) ? a : b));
+      const dx = q.x - s.p.x, dy = q.y - s.p.y, d = Math.hypot(dx, dy);
+      if (d > step) { s.p.x += (dx / d) * step; s.p.y += (dy / d) * step; } else { s.p.x = q.x; s.p.y = q.y; }
+    }
+    return { pointers: [{ id: 21, x: s.p.x, y: s.p.y }] };
+  },
+});
+
+function waveCreateCam({ level, rng }) {
+  const need = WAVE_TUNE.need[level - 1];
+  const kind = level === 1 ? 'fly' : level === 2 ? 'bee' : 'fly';
+  const n = level === 1 ? 3 : level === 2 ? 4 : 2;
+  const pests = Array.from({ length: n }, (_, i) => {
+    const a = Math.PI * (0.15 + 0.7 * (i + 0.5) / n) + (rng() - 0.5) * 0.3;
+    // L3: the ghost owns the middle, so its two flies sit out to the sides
+    const hx = level === 3 ? 180 + (i ? 1 : -1) * (100 + rng() * 20) : 180 - Math.cos(a) * (70 + rng() * 40);
+    const hy = level === 3 ? 96 + rng() * 40 : 92 + Math.sin(a) * 50 + rng() * 20;
+    return { kind, hx, hy, ph: rng() * 9, gone: false, out: 0, dir: i % 2 ? 1 : -1, x: 0, y: 0 };
+  });
+  if (level === 3) pests.unshift({ kind: 'ghost', hx: 180, hy: 126, ph: 0, gone: false, out: 0, dir: rng() < 0.5 ? -1 : 1, x: 180, y: 126 });
+  return {
+    kind: 'cam', status: 'playing', bg: '#2F9E5E', t: 0, acc: 0, need, waving: 0, after: 0, pests, beat: 0,
+    update(dt, f, B) {
+      this.t += dt; this.beat = B.beat;
+      for (const p of pests) if (p.gone) p.out += dt;
+      if (this.status !== 'playing') { this.after += dt; return; }
+      const thr = (f.cam.noise || 0.01) * WAVE_TUNE.rel + WAVE_TUNE.abs;
+      const on = (f.cam.motion || 0) > thr;
+      this.waving = on ? Math.min(1, this.waving + dt * 8) : Math.max(0, this.waving - dt * 4);
+      if (on) { this.acc += dt; if (Math.random() < dt * 6) Sound.sfx('whiff'); }
+      const k = this.acc / this.need;
+      // Pests let go one at a time as the waving adds up; the ghost is last.
+      pests.forEach((p, i) => { if (!p.gone && k >= (pests.length - i) / pests.length) { p.gone = true; Sound.sfx(p.kind === 'ghost' ? 'blink' : 'puff'); } });
+      if (this.acc >= this.need) { this.status = 'won'; }
+    },
+    timeout() { Sound.sfx('giggle'); return 'lost'; },
+    draw(g) { waveDrawCam(g, this); },
+  };
+}
+
+function waveCreateShoo({ level, rng }) {
+  const n = WAVE_TUNE.flies[level - 1], sp = 1 + 0.15 * (level - 1);
+  const flies = Array.from({ length: n }, (_, i) => ({
+    cx: 110 + rng() * 140, cy: 220 + ((i + rng()) / n) * 200, ax: 50 + rng() * 30, ay: 40 + rng() * 30,
+    w1: (2.2 + rng() * 1.2) * sp * (rng() < 0.5 ? -1 : 1), w2: (2.4 + rng() * 1.2) * sp, p1: rng() * TAU, p2: rng() * TAU,
+    x: 0, y: 0, gone: false, out: 0, vx: 0, vy: 0, spin: 0, land: { x: 120 + i * 30 + rng() * 20, y: 452 + rng() * 14 },
+  }));
+  const place = (q, t) => { q.x = q.cx + q.ax * Math.sin(q.w1 * t + q.p1); q.y = q.cy + q.ay * Math.sin(q.w2 * t + q.p2); };
+  flies.forEach((q) => place(q, 0));
+  const segDist = (ax, ay, bx, by, cx, cy) => {
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+    const k = L ? U.clamp(((cx - ax) * dx + (cy - ay) * dy) / L, 0, 1) : 0;
+    return U.dist(ax + dx * k, ay + dy * k, cx, cy);
+  };
+  return {
+    kind: 'shoo', status: 'playing', bg: '#2F9E5E', t: 0, flies, prev: {}, trail: [], after: 0,
+    update(dt, f) {
+      this.t += dt;
+      for (const q of flies) {
+        if (q.gone) { q.out += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.spin += dt * 14; }
+        else if (this.status === 'lost') { const k = Math.min(1, dt * 6); q.x = U.lerp(q.x, q.land.x, k); q.y = U.lerp(q.y, q.land.y, k); }
+        else place(q, this.t);
+      }
+      this.trail = this.trail.filter((p) => this.t - p.t < 0.15);
+      if (this.status !== 'playing') { this.after += dt; this.prev = {}; return; }
+      const now = {};
+      for (const p of f.pointers) {
+        now[p.id] = { x: p.x, y: p.y };
+        this.trail.push({ id: p.id, x: p.x, y: p.y, t: this.t });
+        const o = this.prev[p.id];
+        if (!o) continue;
+        const len = U.dist(o.x, o.y, p.x, p.y);
+        if (len < WAVE_TUNE.minSeg) continue;
+        for (const q of flies) {
+          if (q.gone || segDist(o.x, o.y, p.x, p.y, q.x, q.y) > WAVE_TUNE.hitR) continue;
+          q.gone = true; q.vx = ((p.x - o.x) / len) * 1100; q.vy = ((p.y - o.y) / len) * 1100 - 200;
+          Sound.sfx('swat');
+        }
+      }
+      this.prev = now;
+      if (flies.every((q) => q.gone)) this.status = 'won';
+    },
+    timeout() { Sound.sfx('giggle'); return 'lost'; },
+    draw(g) { waveDrawShoo(g, this); },
+  };
+}
+
+// ---------- drawing ----------
+function waveScene(g, t, cakeY, sad) {
+  fillView(g, '#2F9E5E');
+  g.save(); g.globalAlpha = 0.45; Art.dots(g, '#23844C', 18, 3); g.restore();
+  // grass tufts
+  g.strokeStyle = '#1F7A45'; g.lineWidth = 4; g.lineCap = 'round';
+  for (const [x, y] of [[40, 230], [310, 300], [70, 380], [300, 170], [30, 520], [330, 540]]) { g.beginPath(); g.moveTo(x - 8, y); g.lineTo(x - 4, y - 14); g.moveTo(x, y); g.lineTo(x, y - 18); g.moveTo(x + 8, y); g.lineTo(x + 4, y - 14); g.stroke(); }
+  // checked picnic blanket
+  g.save(); g.translate(180, cakeY + 40);
+  g.beginPath(); g.moveTo(-170, -50); g.lineTo(170, -50); g.lineTo(190, 90); g.lineTo(-190, 90); g.closePath(); g.fillStyle = '#FFF8E8'; g.fill();
+  g.save(); g.clip(); g.fillStyle = '#E8473F';
+  for (let i = -6; i < 6; i++) for (let j = 0; j < 5; j++) if ((i + j) % 2 === 0) g.fillRect(i * 32, -50 + j * 28, 32, 28);
+  g.restore();
+  g.beginPath(); g.moveTo(-170, -50); g.lineTo(170, -50); g.lineTo(190, 90); g.lineTo(-190, 90); g.closePath(); Art.ink(g, 5);
+  g.restore();
+  // cake slice on a plate
+  g.save(); g.translate(180, cakeY);
+  g.beginPath(); g.ellipse(0, 22, 80, 20, 0, 0, TAU); Art.fillInk(g, '#E6EEF2', 5);
+  g.beginPath(); g.moveTo(-56, 16); g.lineTo(56, 16); g.lineTo(56, -26); g.lineTo(-30, -56); g.lineTo(-56, -26); g.closePath(); Art.fillInk(g, '#F7D9A8', 5);
+  g.beginPath(); g.moveTo(-56, -26); g.lineTo(56, -26); g.lineTo(-30, -56); g.closePath(); Art.fillInk(g, '#FF8FB8', 5);
+  g.beginPath(); g.moveTo(-56, -6); g.lineTo(56, -6); g.lineWidth = 7; g.strokeStyle = '#FF8FB8'; g.stroke();
+  Art.circle(g, -18, -50, 9); Art.fillInk(g, '#E8263A', 4);
+  // the cake's face: worried while pests hover, sobbing if they win
+  g.fillStyle = INK; g.strokeStyle = INK; g.lineWidth = 3.5;
+  for (const ex of [-14, 16]) { Art.circle(g, ex, 2, 4); g.fill(); }
+  g.beginPath(); if (sad) g.arc(1, 16, 7, Math.PI + 0.3, -0.3); else g.arc(1, 9, 6, 0.3, Math.PI - 0.3); g.stroke();
+  if (sad) { g.fillStyle = '#8ED8F8'; Art.circle(g, -14, 10 + ((t * 40) % 14), 3); g.fill(); }
+  g.restore();
+}
+
+function waveFly(g, x, y, t, s = 1, bee = false, flip = 1) {
+  g.save(); g.translate(x, y); g.scale(s * flip, s);
+  const fl = Math.sin(t * 70) * 0.5;
+  g.fillStyle = 'rgba(255,255,255,.75)';
+  for (const k of [-1, 1]) { g.save(); g.rotate(k * (0.5 + fl)); g.beginPath(); g.ellipse(k * 2, -14, 7, 13, 0, 0, TAU); g.fill(); g.lineWidth = 2.5; g.strokeStyle = INK; g.stroke(); g.restore(); }
+  g.beginPath(); g.ellipse(0, 0, bee ? 16 : 11, bee ? 12 : 9, 0, 0, TAU); Art.fillInk(g, bee ? '#FFD23F' : '#2B2B3A', 4);
+  if (bee) { g.save(); g.clip(); g.fillStyle = INK; for (const sx of [-6, 4]) g.fillRect(sx, -14, 5, 28); g.restore(); g.beginPath(); g.moveTo(-16, 0); g.lineTo(-23, 2); g.lineTo(-15, 4); g.fillStyle = INK; g.fill(); }
+  for (const ex of [6, 11]) { Art.circle(g, ex + (bee ? 4 : 0), -3, 3.4); g.fillStyle = '#E8263A'; g.fill(); }
+  g.restore();
+}
+
+function waveGhost(g, x, y, t, a = 1, stretch = 1) {
+  g.save(); g.globalAlpha = a; g.translate(x, y); g.scale(stretch, 1 / Math.sqrt(stretch));
+  g.beginPath(); g.moveTo(-50, 40); g.lineTo(-50, -10); g.arc(0, -10, 50, Math.PI, 0); g.lineTo(50, 40);
+  for (let i = 0; i < 5; i++) { const x0 = 50 - i * 20; g.quadraticCurveTo(x0 - 5, 54 + Math.sin(t * 9 + i) * 5, x0 - 10, 40); g.quadraticCurveTo(x0 - 15, 30, x0 - 20, 40); }
+  g.closePath(); Art.fillInk(g, '#F3F0FF', 5);
+  for (const ex of [-17, 17]) { g.beginPath(); g.ellipse(ex, -14, 7, 10, 0, 0, TAU); g.fillStyle = INK; g.fill(); }
+  g.beginPath(); g.ellipse(0, 14, 8, 10 + Math.sin(t * 6) * 2, 0, 0, TAU); g.fillStyle = INK; g.fill();
+  g.restore();
+}
+
+function waveDrawCam(g, s) {
+  const t = s.t, won = s.status === 'won', lost = s.status === 'lost';
+  waveScene(g, t, 440, lost);
+  // the lens badge, standing in for the selfie camera just above the screen
+  const lx = 180, ly = 92, k = U.clamp(s.acc / s.need, 0, 1);
+  Art.circle(g, lx, ly, 34); Art.fillInk(g, '#1B1530', 5);
+  Art.circle(g, lx, ly, 20); g.fillStyle = '#3A3F7A'; g.fill();
+  Art.circle(g, lx - 7, ly - 7, 6); g.fillStyle = 'rgba(255,255,255,.7)'; g.fill();
+  g.beginPath(); g.arc(lx, ly, 42, -Math.PI / 2, -Math.PI / 2 + TAU * k); g.lineWidth = 8; g.strokeStyle = '#FFD23F'; g.lineCap = 'round'; g.stroke();
+  // the pests
+  for (const p of s.pests) {
+    let x = p.hx, y = p.hy;
+    if (p.gone) { x += p.dir * (p.out * 700 + p.out * p.out * 900); y -= p.out * 260; }
+    else if (lost) { const q = U.clamp(s.after / 0.4, 0, 1); x = U.lerp(p.hx, 150 + (p.ph % 1) * 60, q); y = U.lerp(p.hy, 400 + (p.ph % 1) * 20, q); }
+    else {
+      const j = 3 + 9 * s.waving;
+      x += Math.sin(t * 13 + p.ph) * j + Math.sin(t * 2 + p.ph) * 6; y += Math.cos(t * 11 + p.ph * 2) * j;
+    }
+    p.x = x; p.y = y;
+    if (p.kind === 'ghost') {
+      const a = p.gone ? Math.max(0, 1 - p.out * 2) : 0.92;
+      waveGhost(g, p.gone ? 180 + p.dir * p.out * 500 : x, p.gone ? 126 : y, t, a, p.gone ? 1 + p.out * 3 : 1 + 0.25 * s.waving * Math.sin(t * 20));
+    } else waveFly(g, x, y, t, 1.1, p.kind === 'bee', p.dir);
+    if (!p.gone && s.waving > 0.3 && s.status === 'playing') Art.text(g, '!', x + 14, y - 26, 20, { fill: '#FFD23F', w: 4 });
+  }
+  // wind streaks while waving
+  if (s.waving > 0.05 && s.status === 'playing') {
+    g.save(); g.globalAlpha = 0.6 * s.waving; g.strokeStyle = '#FFF8E8'; g.lineWidth = 5; g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) { const yy = 70 + i * 34, xx = ((t * 600 + i * 97) % 420) - 30; g.beginPath(); g.moveTo(xx, yy); g.quadraticCurveTo(xx + 30, yy - 10, xx + 60, yy); g.stroke(); }
+    g.restore();
+  }
+  if (s.status === 'playing' && s.beat > 0.5 && s.beat < 3.6) waveHand(g, s.beat);
+  if (won) {
+    const q = U.ease.outBack(U.clamp(s.after / 0.3, 0, 1));
+    Art.text(g, '✦', 120, 360, 28 * q, { fill: '#FFD23F', w: 4, shadow: false });
+    Art.text(g, '✦', 250, 380, 22 * q, { fill: '#FFD23F', w: 4, shadow: false });
+  }
+  if (lost) Art.text(g, 'NOM NOM', 180, 300, 40, { fill: '#FFD23F', rot: -0.08, scale: U.ease.outBack(U.clamp(s.after / 0.3, 0, 1)) });
+}
+
+// A see-through hand waving side to side just under the camera.
+function waveHand(g, beat) {
+  const x = 180 + Math.sin(beat * Math.PI * 2) * 70, rot = Math.sin(beat * Math.PI * 2) * 0.35;
+  g.save(); g.globalAlpha = 0.5; g.translate(x, 210); g.rotate(rot);
+  g.fillStyle = '#FFF8E8';
+  g.beginPath(); g.moveTo(-30, 50); g.lineTo(-30, -6);
+  for (let i = 0; i < 4; i++) { const fx = -30 + i * 16, h = i === 1 || i === 2 ? 12 : 0; g.lineTo(fx, -40 - h); g.quadraticCurveTo(fx + 7, -50 - h, fx + 14, -40 - h); g.lineTo(fx + 14, -6); }
+  g.lineTo(34, -6); g.lineTo(46, 8); g.lineTo(34, 50); g.closePath(); g.fill(); Art.ink(g, 4);
+  g.restore();
+}
+
+function waveDrawShoo(g, s) {
+  const t = s.t, lost = s.status === 'lost', won = s.status === 'won';
+  waveScene(g, t, 470, lost);
+  // swipe trail
+  const byId = {};
+  for (const p of s.trail) (byId[p.id] = byId[p.id] || []).push(p);
+  for (const pts of Object.values(byId)) {
+    if (pts.length < 2) continue;
+    g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)));
+    g.lineWidth = 16; g.strokeStyle = 'rgba(255,248,232,.45)'; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke();
+  }
+  for (const q of s.flies) {
+    if (q.gone && q.out > 1) continue;
+    const dir = q.gone ? Math.sign(q.vx) || 1 : Math.cos(q.w1 * t + q.p1) * q.w1 >= 0 ? 1 : -1;
+    g.save(); if (q.gone) { g.translate(q.x, q.y); g.rotate(q.spin); g.translate(-q.x, -q.y); }
+    waveFly(g, q.x, q.y, t, 1.25, false, dir);
+    g.restore();
+    if (q.gone && q.out < 0.25) Art.text(g, 'BZZ!', q.x - q.vx * 0.05, q.y - q.vy * 0.05 - 20, 18, { fill: '#FFF8E8', w: 4 });
+  }
+  if (won) Art.text(g, 'SHOO!', 180, 300, 50, { fill: '#FFD23F', rot: -0.06, scale: U.ease.outBack(U.clamp(s.after / 0.3, 0, 1)) });
+  if (lost) Art.text(g, 'NOM NOM', 180, 300, 40, { fill: '#FFD23F', rot: -0.08, scale: U.ease.outBack(U.clamp(s.after / 0.3, 0, 1)) });
+}
+
+/* ---- 7D-g-trace.js ---- */
+// TRACE! — a dotted neon shape (zigzag, lightning bolt, heart, star): run one finger from the GO dot to the end.
+// Progress follows the finger while it stays close to the next stretch of the path; wander off for a moment and it
+// snaps back to the last checkpoint. L1 easy shapes, L2 longer ones, L3 the star or heart with a tighter lane.
+const TRACE_TUNE = {
+  tol: [36, 32, 28],   // px from the path that still counts as on it, per level
+  strayK: 1.3,         // straying = farther than tol × this from the nearby path...
+  strayT: 0.25,        // ...for longer than this many seconds → back to the last checkpoint
+  look: 70,            // px of path ahead a finger can claim in one go (stops shortcuts)
+  step: 6,             // px between resampled path points
+};
+
+// Shapes as polylines in stage coordinates; closed ones end where they start. `cp` = checkpoint vertices.
+function traceShape(name) {
+  if (name === 'zigzag') return { pts: [[66, 250], [146, 400], [216, 250], [296, 400]] };
+  if (name === 'bolt') return { pts: [[224, 170], [118, 336], [206, 326], [128, 492]] };
+  if (name === 'mzag') return { pts: [[60, 420], [100, 240], [180, 380], [260, 240], [300, 420]] };
+  if (name === 'star') {
+    const pts = [];
+    for (let i = 0; i <= 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 44 : 108; pts.push([180 + Math.cos(a) * r, 336 + Math.sin(a) * r]); }
+    return { pts };
+  }
+  // heart: starts and ends at the bottom tip, going up the left side first
+  const pts = [], N = 48;
+  for (let i = 0; i <= N; i++) {
+    const a = Math.PI - (i / N) * TAU;
+    const x = 16 * Math.pow(Math.sin(a), 3), y = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a);
+    pts.push([180 - x * 7.2, 318 - y * 7.2]);
+  }
+  return { pts, cpEvery: 8 };
+}
+
+function traceResample(shape) {
+  const out = [], cps = [0];
+  const src = shape.pts;
+  out.push({ x: src[0][0], y: src[0][1], s: 0 });
+  let s = 0, carry = 0;
+  for (let i = 1; i < src.length; i++) {
+    const [ax, ay] = src[i - 1], [bx, by] = src[i];
+    const L = Math.hypot(bx - ax, by - ay);
+    let d = TRACE_TUNE.step - carry;
+    while (d <= L) { const k = d / L; s += TRACE_TUNE.step; out.push({ x: ax + (bx - ax) * k, y: ay + (by - ay) * k, s }); d += TRACE_TUNE.step; }
+    carry = L - (d - TRACE_TUNE.step);
+    if (!shape.cpEvery || i % shape.cpEvery === 0) cps.push(out.length - 1);
+  }
+  const [ex, ey] = src[src.length - 1], last = out[out.length - 1];
+  if (U.dist(ex, ey, last.x, last.y) > 0.5) out.push({ x: ex, y: ey, s: last.s + U.dist(ex, ey, last.x, last.y) });
+  cps[cps.length - 1] = out.length - 1;
+  return { pts: out, cps: [...new Set(cps)], len: out[out.length - 1].s, closed: U.dist(src[0][0], src[0][1], ex, ey) < 2 };
+}
+
+Games.add({
+  id: 'trace', verb: 'TRACE!', sensor: 'touch', look: '#4B1D52',
+  create({ level, rng }) {
+    const pool = level === 1 ? ['zigzag', 'bolt'] : level === 2 ? ['heart', 'mzag', 'bolt'] : ['star', 'heart'];
+    const name = pool[Math.floor(rng() * pool.length)];
+    const P = traceResample(traceShape(name));
+    const tol = TRACE_TUNE.tol[level - 1], look = Math.ceil(TRACE_TUNE.look / TRACE_TUNE.step);
+    return {
+      status: 'playing', bg: '#4B1D52', t: 0, after: 0, name, P, tol, idx: 0, cp: 0, stray: 0, pid: null,
+      snap: null, finger: null, sparks: [], beat: 0,
+      update(dt, f, B) {
+        this.t += dt; this.beat = B.beat;
+        for (const k of this.sparks) { k.t += dt; k.x += k.vx * dt; k.y += k.vy * dt; k.vy += 300 * dt; }
+        this.sparks = this.sparks.filter((k) => k.t < 0.6);
+        if (this.snap) { this.snap.t += dt; if (this.snap.t > 0.5) this.snap = null; }
+        if (this.status !== 'playing') { this.after += dt; return; }
+        let p = f.pointers.find((q) => q.id === this.pid);
+        if (!p) { p = f.pointers[0]; this.pid = p ? p.id : null; }
+        this.finger = p ? { x: p.x, y: p.y } : null;
+        if (!p) { this.stray = 0; return; }
+        const pts = P.pts, n = pts.length;
+        let best = -1, near = Infinity;
+        for (let j = Math.max(0, this.idx - (look >> 1)); j <= Math.min(n - 1, this.idx + look); j++) {
+          const d = U.dist(p.x, p.y, pts[j].x, pts[j].y);
+          if (d < near) near = d;
+          if (j >= this.idx && d < tol) best = j;
+        }
+        if (best > this.idx) {
+          if (Math.floor(pts[best].s / 50) > Math.floor(pts[this.idx].s / 50)) { Sound.sfx('fizz'); this.sparks.push({ x: pts[best].x, y: pts[best].y, vx: (Math.random() - 0.5) * 200, vy: -120 - Math.random() * 100, t: 0 }); }
+          this.idx = best;
+          for (const c of P.cps) if (c <= this.idx && c > this.cp) { this.cp = c; Sound.sfx('tick'); }
+        }
+        this.stray = near > tol * TRACE_TUNE.strayK ? this.stray + dt : 0;
+        if (this.stray > TRACE_TUNE.strayT) {
+          if (this.idx > this.cp) { this.snap = { from: this.cp, to: this.idx, t: 0 }; Sound.sfx('whiff'); }
+          this.idx = this.cp; this.stray = 0;
+        }
+        if (this.idx >= n - 1) {
+          this.status = 'won'; Sound.sfx('pop');
+          for (let i = 0; i < 18; i++) { const q = pts[Math.floor((i / 18) * n)]; this.sparks.push({ x: q.x, y: q.y, vx: (Math.random() - 0.5) * 300, vy: -100 - Math.random() * 200, t: 0 }); }
+        }
+      },
+      timeout() { Sound.sfx('puff'); return 'lost'; },
+      draw(g) { traceDraw(g, this); },
+    };
+  },
+  bot(inst, B, ctx) {
+    if (B.t < ctx.delay) return {};
+    const s = ctx.state, P = inst.P;
+    if (s.d == null) { s.d = 0; s.lastT = B.t; }
+    // Slide along the path at a brisk finger speed, never running far ahead of the game's progress.
+    s.d = Math.min(s.d + 1000 * (B.t - s.lastT), P.pts[inst.idx].s + 40, P.len); s.lastT = B.t;
+    const pts = P.pts; let j = 0;
+    while (j < pts.length - 1 && pts[j + 1].s < s.d) j++;
+    const a = pts[j], b = pts[Math.min(pts.length - 1, j + 1)], k = b.s > a.s ? (s.d - a.s) / (b.s - a.s) : 0;
+    return { pointers: [{ id: 31, x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k }] };
+  },
+});
+
+function traceDraw(g, s) {
+  const t = s.t, P = s.P, pts = P.pts, n = pts.length, won = s.status === 'won', lost = s.status === 'lost';
+  fillView(g, '#4B1D52');
+  g.save(); g.globalAlpha = 0.5; Art.dots(g, '#5E2A67', 22, 3); g.restore();
+  // little stars in the sky for the neon-sign mood
+  for (let i = 0; i < 12; i++) { const x = (i * 83) % 340 + 10, y = 130 + ((i * 151) % 420); g.save(); g.globalAlpha = 0.25 + 0.2 * Math.sin(t * 3 + i); Art.text(g, '✦', x, y, 12, { fill: '#FFF8E8', w: 0, shadow: false }); g.restore(); }
+  const path = (a, b) => { g.beginPath(); g.moveTo(pts[a].x, pts[a].y); for (let i = a + 1; i <= b; i++) g.lineTo(pts[i].x, pts[i].y); };
+  // untraced: a fat dark lane with dots
+  path(0, n - 1); g.lineWidth = s.tol * 1.3; g.strokeStyle = 'rgba(20,6,26,.35)'; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke();
+  for (let i = s.idx; i < n; i += 3) { Art.circle(g, pts[i].x, pts[i].y, 4.2); g.fillStyle = lost ? '#FF5F7A' : 'rgba(255,248,232,.8)'; g.fill(); }
+  // traced: ink under a neon tube
+  if (s.idx > 0) {
+    const glow = won ? 0.5 + 0.4 * Math.sin(t * 16) : 0.35;
+    path(0, s.idx); g.lineWidth = 30; g.strokeStyle = `rgba(255,79,216,${glow})`; g.stroke();
+    path(0, s.idx); g.lineWidth = 17; g.strokeStyle = INK; g.stroke();
+    path(0, s.idx); g.lineWidth = 10; g.strokeStyle = lost ? '#9A8AA0' : '#FFE14D'; g.stroke();
+    path(0, s.idx); g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.8)'; g.stroke();
+  }
+  // a snapped-back stretch flashes red
+  if (s.snap) { g.save(); g.globalAlpha = 1 - s.snap.t / 0.5; path(s.snap.from, s.snap.to); g.lineWidth = 12; g.strokeStyle = '#FF3B5C'; g.stroke(); g.restore(); }
+  // checkpoints
+  for (const c of P.cps.slice(1, -1)) {
+    const q = pts[c], on = c <= s.idx;
+    g.save(); g.translate(q.x, q.y); g.rotate(Math.PI / 4);
+    Art.rr(g, -8, -8, 16, 16, 3); Art.fillInk(g, on ? '#FFE14D' : '#B47CC0', 4); g.restore();
+  }
+  // end target (pulses once you're on the way; on a closed shape it sits under the GO dot)
+  const e = pts[n - 1], pulse = 1 + 0.12 * Math.sin(t * 10);
+  Art.circle(g, e.x, e.y, 22 * (won ? 1.3 : pulse)); Art.fillInk(g, '#FF4FD8', 5);
+  Art.text(g, '★', e.x, e.y + 1, 22, { fill: '#FFF8E8', w: 0, shadow: false });
+  // start dot, with an arrow pointing the way
+  const st = pts[0], nx = pts[Math.min(n - 1, 5)];
+  if (!(P.closed && s.idx > n / 2)) {
+    const a = Math.atan2(nx.y - st.y, nx.x - st.x);
+    g.save(); g.translate(st.x, st.y); g.rotate(a);
+    g.beginPath(); g.moveTo(30, -10); g.lineTo(46, 0); g.lineTo(30, 10); g.closePath(); Art.fillInk(g, '#7CF29A', 4);
+    g.restore();
+    Art.circle(g, st.x, st.y, 20); Art.fillInk(g, '#7CF29A', 5);
+    Art.text(g, 'GO', st.x, st.y + 1, 14, { fill: INK, w: 0, shadow: false });
+  }
+  // the head of the trail: a spark, plus a pulsing ring on where to go next before the finger lands
+  if (!won && !lost) {
+    const h = pts[s.idx];
+    Art.circle(g, h.x, h.y, 9 + 3 * Math.sin(t * 25)); g.fillStyle = '#FFF8E8'; g.fill();
+    if (!s.finger) { g.save(); g.globalAlpha = 0.5 + 0.5 * Math.sin(t * 8); Art.circle(g, h.x, h.y, 30); g.lineWidth = 5; g.strokeStyle = '#7CF29A'; g.stroke(); g.restore(); }
+  }
+  if (s.finger && !won && !lost) { Art.circle(g, s.finger.x, s.finger.y, 16); g.lineWidth = 4; g.strokeStyle = s.stray > 0 ? '#FF3B5C' : 'rgba(255,248,232,.6)'; g.stroke(); }
+  for (const k of s.sparks) { g.save(); g.globalAlpha = 1 - k.t / 0.6; Art.text(g, '✦', k.x, k.y, 18, { fill: '#FFE14D', w: 3, shadow: false }); g.restore(); }
+  if (won) {
+    const q = U.ease.outBack(U.clamp(s.after / 0.3, 0, 1));
+    const word = { star: 'TWINKLE!', heart: 'LOVELY!', bolt: 'ZAP!', zigzag: 'ZING!', mzag: 'ZING!' }[s.name];
+    Art.text(g, word, 180, 540, 40, { fill: '#FFE14D', rot: -0.06, scale: q });
+  }
+  if (lost) Art.text(g, 'FIZZLE…', 180, 540, 36, { fill: '#B47CC0', rot: 0.05, scale: U.ease.outBack(U.clamp(s.after / 0.3, 0, 1)) });
+}
+
 /* ---- 80-ui.js ---- */
 // DOM screens over the canvas: title, permissions, practice, results, pause, sensor check.
 // Set FULL_URL once the sensor-enabled copy is hosted (GitHub Pages), so the Artifact can link to it.
@@ -3250,9 +4965,6 @@ const UI = (() => {
     const runs = History.runs(), rank = runs.filter((r) => r.pts > run.points).length + 1;
     $('over-best').textContent = isBest ? 'New best!' : `Best: ${fmt(bestScore)}` + (runs.length > 2 ? ` · #${rank} of ${runs.length} runs` : '');
     $('over-log').innerHTML = run.log.map((e) => `<li class="${e.won ? '' : 'miss'}">${esc(e.verb)}</li>`).join('');
-    const box = $('snaps');
-    box.innerHTML = run.snaps.map((s, i) => `<figure style="--r:${(i % 2 ? 3 : -3)}deg"><img alt="You, mid-${s.label}" src="${s.url}"><figcaption>${s.label}</figcaption></figure>`).join('');
-    box.hidden = $('snaps-note').hidden = !run.snaps.length;
     best(); show('over');
   }
 
@@ -3326,7 +5038,7 @@ const UI = (() => {
       U.store.set('bestPts', 3120);
       U.store.set('stats', Object.fromEntries(ids.map((id, i) => [id, { p: 6 + i, w: 2 + ((i * 5) % 7) }])));
       if (target === 'history') document.getElementById('btn-history').click();
-      else UI.showOver({ points: 1890, score: 11, level: 2, bestStreak: 6, snaps: [], log: ids.concat(ids).slice(0, 15).map((id, i) => ({ verb: verbOf(Games.byId[id], 'touch'), won: i % 5 !== 3 })) }, 3120, false);
+      else UI.showOver({ points: 1890, score: 11, level: 2, bestStreak: 6, log: ids.concat(ids).slice(0, 15).map((id, i) => ({ verb: verbOf(Games.byId[id], 'touch'), won: i % 5 !== 3 })) }, 3120, false);
       frozen = true;
     } else if (target === 'inter') {
       // A mid-run interstitial: 7 cleared, one battery down, POUR up next.
