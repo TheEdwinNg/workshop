@@ -38,7 +38,7 @@ html, body {
 
 .screen {
   position: fixed; inset: 0; overflow-y: auto; z-index: 5;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: center; /* tall screens scroll from the top; short ones centre via .wrap's auto margins */
   padding-top: calc(24px + env(safe-area-inset-top, 0px));
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   padding-left: max(16px, env(safe-area-inset-left, 0px));
@@ -46,7 +46,7 @@ html, body {
   box-sizing: border-box; touch-action: pan-y;
 }
 .screen.dim { background: rgba(22, 35, 143, .78); }
-.wrap { width: 100%; max-width: 440px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.wrap { margin-block: auto; width: 100%; max-width: 440px; display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
 .wrap.narrow { max-width: 360px; }
 
 .mark { font-family: var(--display); font-weight: 400; font-size: clamp(76px, 26vw, 120px); line-height: .9; margin: 0; display: flex; gap: .02em; color: var(--sun); text-shadow: 0 .06em 0 var(--ink); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; }
@@ -125,6 +125,43 @@ h3 { font-family: var(--body); font-weight: 800; font-size: 13px; letter-spacing
 .runlog li { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: var(--paper); color: var(--ink); }
 .runlog li.miss { background: transparent; color: var(--mist); border: 1.5px dashed var(--mist); }
 
+/* Run: map container (RunMap draws inside), shop, rest, end screen, toast */
+.mapscreen { position: fixed; inset: 0; z-index: 5; overflow-y: auto; background: var(--shell); touch-action: pan-y; }
+#map-root { height: 100%; } /* RunMap fills it; its map area grows to the screen height */
+.big:disabled { opacity: .5; }
+.unlocks { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.unlocks .runlog li { background: var(--sun); }
+#toast { position: fixed; z-index: 9; left: 50%; transform: translateX(-50%); top: calc(16px + env(safe-area-inset-top, 0px)); background: var(--sun); color: var(--ink); border: 3px solid var(--ink); border-radius: 999px; padding: 8px 18px; font-family: var(--display); font-size: 18px; box-shadow: 0 4px 0 var(--ink); }
+
+/* Title modes, daily, party, awards */
+.modes { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mode { background: var(--shell-deep); color: var(--paper); border: 3px solid var(--ink); border-radius: 16px; padding: 10px 4px; display: flex; flex-direction: column; gap: 2px; align-items: center; box-shadow: 0 4px 0 var(--ink); min-width: 0; }
+.mode b { font-family: var(--display); font-weight: 400; font-size: 17px; color: var(--sun); }
+.mode span { font-size: 11px; font-weight: 700; color: var(--mist); }
+.mode.done b::after { content: " ✓"; color: var(--paper); }
+.linkish { background: none; color: var(--mist); text-decoration: underline; font-size: 13px; font-weight: 700; padding: 4px; }
+.share { width: 100%; max-width: 320px; box-sizing: border-box; margin: 0; padding: 12px; background: var(--paper); color: var(--ink); border: 3px solid var(--ink); border-radius: 14px; font-family: var(--body); font-size: 15px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; user-select: text; -webkit-user-select: text; }
+.names { width: 100%; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.names li { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.names input { font: inherit; font-weight: 700; font-size: 16px; padding: 10px 14px; border-radius: 12px; border: 3px solid var(--ink); background: var(--paper); color: var(--ink); min-width: 0; user-select: text; -webkit-user-select: text; }
+.names button { background: var(--shell-deep); color: var(--paper); border-radius: 12px; padding: 0 14px; font-weight: 800; }
+.bigname { font-size: clamp(34px, 11vw, 52px); overflow-wrap: anywhere; }
+.standings { width: 100%; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.standings li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; background: var(--shell-deep); border-radius: 12px; padding: 8px 12px; font-weight: 700; text-align: left; font-variant-numeric: tabular-nums; }
+.standings li.now { background: var(--paper); color: var(--ink); }
+.standings li.out { opacity: .5; text-decoration: line-through; }
+.standings .bats { letter-spacing: 2px; color: var(--sun); }
+.standings li.now .bats { color: var(--ink); }
+.awards { width: 100%; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.awards li { background: var(--shell-deep); border-radius: 14px; padding: 10px; display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: center; text-align: left; min-width: 0; opacity: .6; }
+.awards li.got { background: var(--paper); color: var(--ink); opacity: 1; border: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.awards .glyph { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--shell); color: var(--mist); font-family: var(--display); font-size: 14px; }
+.awards li.got .glyph { background: var(--sun); color: var(--ink); border: 2px solid var(--ink); }
+.awards b { display: block; font-size: 13px; font-weight: 800; }
+.awards small { display: block; font-size: 11px; line-height: 1.3; }
+.awards .prog { display: block; height: 4px; border-radius: 2px; background: var(--shell); margin-top: 4px; overflow: hidden; }
+.awards .prog i { display: block; height: 100%; background: var(--sun); }
+
 </style>
 <canvas id="stage" aria-label="Jolt game screen"></canvas>
 
@@ -133,16 +170,23 @@ h3 { font-family: var(--body); font-weight: 800; font-size: 13px; letter-spacing
     <h1 class="mark" aria-label="Jolt"><span>J</span><span>O</span><span>L</span><span>T</span></h1>
     <p class="tag">Tiny games, four seconds each. Your phone is the controller.</p>
     <button id="btn-play" class="big">Play</button>
+    <div class="modes">
+      <button id="btn-daily" class="mode"><b>Daily</b><span id="daily-line">Today's 16</span></button>
+      <button id="btn-party" class="mode"><b>Party</b><span>Pass the phone</span></button>
+      <button id="btn-adventure" class="mode"><b>Adventure</b><span id="run-line">3 acts</span></button>
+    </div>
+    <button id="btn-newrun" class="linkish" hidden>Start a new adventure instead</button>
     <p class="best" id="best-line"></p>
     <div class="chips" id="chips" aria-label="Sensors"></div>
     <div class="row">
       <button id="btn-practice" class="ghost">Practice</button>
       <button id="btn-history" class="ghost">History</button>
+      <button id="btn-awards" class="ghost">Awards</button>
       <button id="btn-quiet" class="ghost" aria-pressed="false">Quiet mode: off</button>
       <button id="btn-check" class="ghost">Sensor check</button>
     </div>
     <p class="fine" id="host-note"></p>
-    <p class="fine build">v0.3.0 · 2026-11-03 · <span id="game-count"></span> games</p>
+    <p class="fine build">v0.6.0 · 2026-11-04 · <span id="game-count"></span> games</p>
   </div>
 </section>
 
@@ -161,6 +205,7 @@ h3 { font-family: var(--body); font-weight: 800; font-size: 13px; letter-spacing
     <div class="levels" role="group" aria-label="Level">
       <button data-level="1" class="lvl on">Level 1</button><button data-level="2" class="lvl">Level 2</button><button data-level="3" class="lvl">Level 3</button>
     </div>
+    <button id="btn-prac-remix" class="ghost" aria-pressed="false">Remix: off</button>
     <div class="grid" id="practice-grid"></div>
     <button id="btn-practice-back" class="ghost">Back</button>
   </div>
@@ -203,6 +248,93 @@ h3 { font-family: var(--body); font-weight: 800; font-size: 13px; letter-spacing
     <div class="row"><button id="btn-history-back" class="ghost">Back</button><button id="btn-history-clear" class="ghost">Clear history</button></div>
   </div>
 </section>
+
+<section id="map" class="mapscreen" hidden aria-label="Run map"><div id="map-root"></div></section>
+
+<section id="rest" class="screen" hidden aria-label="Rest stop">
+  <div class="wrap narrow">
+    <p class="eyebrow">Rest stop</p>
+    <h2>Take a breather</h2>
+    <p class="fine" id="rest-status"></p>
+    <button id="btn-rest-battery" class="big">Recharge</button>
+  </div>
+</section>
+
+<section id="runend" class="screen" hidden aria-label="Run finished">
+  <div class="wrap">
+    <p class="eyebrow" id="runend-eyebrow"></p>
+    <h2 id="runend-head">Run over</h2>
+    <div class="score"><span id="runend-score">0</span><small>points</small></div>
+    <p id="runend-sub" class="fine"></p>
+    <p id="runend-best" class="best"></p>
+    <div id="runend-unlocks" class="unlocks" hidden><p class="eyebrow">New games unlocked</p><ul id="runend-new" class="runlog"></ul></div>
+    <ol id="runend-log" class="runlog" aria-label="This run, game by game"></ol>
+    <div class="row">
+      <button id="btn-runend-again" class="big">New run</button>
+      <button id="btn-runend-menu" class="ghost">Menu</button>
+    </div>
+  </div>
+</section>
+
+<section id="dailyend" class="screen" hidden aria-label="Daily result">
+  <div class="wrap">
+    <p class="eyebrow" id="daily-eyebrow">Daily</p>
+    <div class="score"><span id="daily-score">0</span><small>points</small></div>
+    <p id="daily-sub" class="best"></p>
+    <p id="daily-note" class="fine"></p>
+    <pre id="daily-share" class="share" aria-label="Your result to share"></pre>
+    <div class="row">
+      <button id="btn-daily-copy" class="big">Copy result</button>
+      <button id="btn-daily-again" class="ghost">Play again (not scored)</button>
+      <button id="btn-daily-menu" class="ghost">Menu</button>
+    </div>
+  </div>
+</section>
+
+<section id="partysetup" class="screen" hidden aria-label="Party setup">
+  <div class="wrap narrow">
+    <h2>Party</h2>
+    <p class="fine">Pass the phone around. Three games a turn, three batteries each. Lose them all and you're out. Last one standing wins.</p>
+    <ol id="party-names" class="names"></ol>
+    <button id="btn-party-add" class="ghost">+ Add player</button>
+    <button id="btn-party-go" class="big">Start</button>
+    <button id="btn-party-back" class="ghost">Back</button>
+  </div>
+</section>
+
+<section id="handoff" class="screen" hidden aria-label="Pass the phone">
+  <div class="wrap narrow">
+    <p class="eyebrow" id="handoff-round">Round 1</p>
+    <p class="fine">Pass the phone to</p>
+    <h2 id="handoff-name" class="bigname">Player</h2>
+    <ol id="handoff-table" class="standings"></ol>
+    <button id="btn-handoff-go" class="big">I'm ready</button>
+    <button id="btn-handoff-end" class="linkish">End the party</button>
+  </div>
+</section>
+
+<section id="partyend" class="screen" hidden aria-label="Party result">
+  <div class="wrap narrow">
+    <p class="eyebrow">Party over</p>
+    <h2 id="partyend-head" class="bigname">Winner</h2>
+    <ol id="partyend-table" class="standings"></ol>
+    <div class="row">
+      <button id="btn-partyend-again" class="big">Rematch</button>
+      <button id="btn-partyend-menu" class="ghost">Menu</button>
+    </div>
+  </div>
+</section>
+
+<section id="awards" class="screen" hidden aria-label="Awards">
+  <div class="wrap">
+    <h2>Awards</h2>
+    <p id="awards-count" class="best"></p>
+    <ul id="awards-grid" class="awards"></ul>
+    <button id="btn-awards-back" class="ghost">Back</button>
+  </div>
+</section>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
 
 <section id="pause" class="screen dim" hidden aria-label="Paused">
   <div class="wrap narrow"><h2>Paused</h2><button id="btn-resume" class="big">Resume</button><button id="btn-quit" class="ghost">Quit to menu</button></div>
@@ -263,6 +395,8 @@ const FLAGS = (() => {
     at: parseFloat(q.get('at') || '2.5'),
     level: parseInt(q.get('level') || '2', 10),
     nostart: has('nostart'),
+    all: has('all'),
+    remix: q.get('remix'),        // with ?shot=<game>: show it under this remix             // unlock every game in Run mode (testing)
   };
 })();
 
@@ -308,7 +442,7 @@ const Hub = (() => {
   };
   const cal = { on: false, g: [], b: [], rms: [], lum: [], motion: [] };
   let stream = null, analyser = null, abuf = null, video = null, camCv = null, camCx = null, prevLuma = null;
-  let listening = false, mediaAsked = false, toStage = (x, y) => ({ x, y });
+  let listening = false, mediaAsked = false, hadMedia = false, toStage = (x, y) => ({ x, y });
   const keys = new Set();
 
   function attach(el, mapFn) {
@@ -393,6 +527,7 @@ const Hub = (() => {
       } catch (e3) { /* no camera */ }
     }
     if (!stream) return;
+    hadMedia = true;
     if (stream.getAudioTracks().length) {
       const ctx = Sound.ensure();
       if (ctx) {
@@ -464,6 +599,8 @@ const Hub = (() => {
     avail, st,
     attach, start, stopMedia, openMedia,
     get mediaAsked() { return mediaAsked; },
+    get hadMedia() { return hadMedia; },
+    get live() { return !!stream; },
     // Calibration runs during the interstitial before every game (the Twisted! lesson: re-centre often).
     calReset() { cal.on = true; cal.g = []; cal.b = []; cal.rms = []; cal.lum = []; cal.motion = []; },
     calLock() {
@@ -666,26 +803,39 @@ const Art = {
 const SENSOR_LABEL = { touch: 'touch', tilt: 'tilt', shake: 'shake', mic: 'blow / speak', cam: 'front camera' };
 
 /* ---- 40-engine.js ---- */
-// The loop: interstitial (calibrate) → microgame → interstitial … Score = games cleared.
+// The loop: interstitial (calibrate) → microgame → interstitial … in three modes:
+//   classic   — endless; FASTER! every few games, a boss and LEVEL UP every 10, remixes after the first cycle.
+//   daily     — the same 16 games for everyone today, from a date seed (49-daily.js). One scored try a day.
+//   party     — pass the phone: turns of 3 games, 3 batteries each, last player standing (49-party.js).
+//   run       — Adventure: RunMode (47-run.js) hands the engine one stage at a time (5 games, or a boss);
+//               batteries, points and streak carry between stages; the map sits in between.
+//   practice  — one chosen game, again and again.
+// Queue items ({ G, remix, level?, bpm? }) drive daily, party and run; classic and practice pick as they go.
 //
 // A microgame definition (registered with Games.add):
-//   { id, verb, sensor: 'touch'|'tilt'|'shake'|'mic'|'cam', beats: 8, inverted?, look: '#bg',
-//     create({level, rng, bpm, mode}) → inst, bot(inst, B, ctx) → partial Frame }
+//   { id, verb, verbTouch?, sensor: 'touch'|'tilt'|'shake'|'mic'|'cam', beats: 8, inverted?, boss?, noRemix?, look,
+//     create({level, rng, bpm, mode, can}) → inst, bot(inst, B, ctx) → partial Frame }
 //   mode is 'sensor' or 'touch' (the fallback when the sensor is missing, denied, too dark, or Quiet mode is on).
+//   can = { tilt, motion, mic, cam }: which sensors this game may use right now (all false in touch mode).
+//     Bosses mix sensors, so each boss phase checks `can` for its own sensor and falls back to touch.
+//   boss: true keeps a game out of the random rotation; it's played at boss slots (Classic) and boss nodes (Run).
 // An instance: { status: 'playing'|'won'|'lost', bg, update(dt, frame, B), draw(g, B), timeout?() → status }
-//   B = { t, beat, spb, bpm, beats }  (beat counts from 0 when the game starts)
+//   B = { t, beat, spb, bpm, beats }  (beat counts from 0 when the game starts; beats includes perk bonuses)
 const Games = {
   list: [], byId: {},
   add(def) { def.beats = def.beats || 8; this.list.push(def); this.byId[def.id] = def; },
+  get regular() { return this.list.filter((G) => !G.boss); },
+  get bosses() { return this.list.filter((G) => G.boss); },
 };
 
 const CFG = {
-  cycleLen: 10,         // games per cycle; after it: LEVEL UP, +1 life, tempo resets a notch higher
-  speedAt: [4, 7],      // FASTER! after these many games in a cycle
+  cycleLen: 10,         // Classic: games per cycle; game 10 is a boss when one exists; then LEVEL UP, +1 battery
+  speedAt: [4, 7],      // Classic: FASTER! after these many games in a cycle
   tiers: [120, 136, 152],
   maxBpm: 180,
   interBeats: 4, bannerBeats: 4,
   lives: 4,
+  classicRemix: 0.3,    // Classic: chance a game is remixed, from the second cycle on
 };
 
 // The verb a game shows: some sensor games read differently as their touch version (COVER! → HIDE!).
@@ -703,9 +853,9 @@ const History = {
   stats() { const s = U.store.get('stats', {}); return s && typeof s === 'object' ? s : {}; },
   best() { return U.store.get('bestPts', 0); },
   recordGame(id, won) { const s = History.stats(); const r = s[id] || { p: 0, w: 0 }; r.p++; if (won) r.w++; s[id] = r; U.store.set('stats', s); },
-  recordRun(run) {
+  recordRun(run, extra = {}) {
     const h = History.runs();
-    h.unshift({ t: Date.now(), pts: run.points, cleared: run.score, played: run.played, level: run.level, streak: run.bestStreak, log: run.log.map((e) => [e.id, e.won ? 1 : 0]) });
+    h.unshift({ t: Date.now(), mode: run.mode, pts: run.points, cleared: run.score, played: run.played, level: run.level, streak: run.bestStreak, log: run.log.map((e) => [e.id, e.won ? 1 : 0]), ...extra });
     U.store.set('history', h.slice(0, 30));
     const isBest = run.points > History.best();
     if (isBest) U.store.set('bestPts', run.points);
@@ -725,82 +875,148 @@ function chooseMode(G) {
     : G.sensor === 'cam' ? (FLAGS.mock || Hub.camReady()) : false;
   return ok ? 'sensor' : 'touch';
 }
+// Which sensors a game may use right now. Touch mode means none.
+function canFor(mode) {
+  if (mode !== 'sensor') return { tilt: false, motion: false, mic: false, cam: false };
+  if (FLAGS.mock) return { tilt: true, motion: true, mic: true, cam: true };
+  const a = Hub.avail, q = Settings.quiet;
+  return { tilt: !!a.tilt, motion: !!a.motion && !q, mic: !!a.mic && !q, cam: Hub.camReady() && !q };
+}
+// A boss runs in 'sensor' mode whenever any of its sensors is usable; its phases decide individually.
+function chooseModeAny(G) {
+  if (!G.boss) return chooseMode(G);
+  if (FLAGS.touch) return 'touch';
+  const c = canFor('sensor');
+  return c.tilt || c.motion || c.mic || c.cam ? 'sensor' : 'touch';
+}
+
+const PARTY = { turnLen: 3, lives: 3, rounds: 6 };
 
 const Engine = {
-  state: 'title', run: null, ph: null, inst: null, G: null, mode: 'touch', botCtx: null, flash: null,
+  state: 'title', run: null, ph: null, inst: null, G: null, mode: 'touch', remix: null, beats: 8,
+  botCtx: null, flash: null, lastTouch: null, botsOff: false,
 
-  startRun(practice = null) {
+  newSession(mode, extra = {}) {
     this.run = {
-      lives: CFG.lives, score: 0, cycle: 0, idx: 0, level: practice ? practice.level : 1, bpm: CFG.tiers[0],
-      bag: [], last: null, sinceCam: 9, practice, played: 0,
-      points: 0, streak: 0, bestStreak: 0, lastPts: 0, log: [],
+      mode, lives: CFG.lives, maxLives: CFG.lives, score: 0, played: 0, level: 1, bpm: CFG.tiers[0],
+      last: null, sinceCam: 9, points: 0, streak: 0, bestStreak: 0, lastPts: 0, log: [],
+      cycle: 0, idx: 0, bag: [], practice: null, queue: [], stage: null, stageGame: 0,
+      ...extra,
     };
     Hub.clearInput();
-    this.enterInter(null);
+    return this.run;
+  },
+  startClassic() { this.newSession('classic'); this.enterInter(null); },
+  startPractice(p) { this.newSession('practice', { practice: p, level: p.level }); this.enterInter(null); },
+  // Back-compat for the screenshot entry: startRun(null) = classic, startRun({id, level}) = practice.
+  startRun(practice = null) { if (practice) this.startPractice(practice); else this.startClassic(); },
+
+  // Run mode: play one stage. stage = { kind: 'stage'|'remix'|'boss', label, items: [{G, remix}], level, bpm, step, mult }
+  playStage(stage) {
+    const r = this.run;
+    Object.assign(r, { stage, queue: stage.items.slice(), level: stage.level, bpm: stage.bpm, stageGame: 0, saverUsed: false });
+    this.enterInter(null, stage.label);
   },
 
   pickNext() {
     const r = this.run;
-    if (r.practice) return Games.byId[r.practice.id];
-    if (!r.bag.length) r.bag = U.shuffle(Games.list.slice(), Math.random);
+    if (r.mode === 'practice') {
+      const G = Games.byId[r.practice.id];
+      if (r.practice.remixId) return { G, remix: Remixes.byId[r.practice.remixId] || null };
+      return { G, remix: r.practice.remix ? Remixes.pick(G, chooseModeAny(G), Math.random) : null };
+    }
+    if (r.mode === 'run' || r.mode === 'daily') return r.queue.shift();
+    if (r.mode === 'party') return Party.next(r);
+    // Classic: game 10 of each cycle is a boss when there is one; otherwise a shuffled bag of the regular games.
+    if (r.idx === CFG.cycleLen - 1 && Games.bosses.length) return { G: Games.bosses[r.cycle % Games.bosses.length], remix: null };
+    if (!r.bag.length) r.bag = U.shuffle(Games.regular.slice(), Math.random);
     // Avoid the same sensor twice in a row, and more than one camera game in any four.
     let i = r.bag.findIndex((g) => g.sensor !== r.last && !(g.sensor === 'cam' && r.sinceCam < 3));
     if (i < 0) i = 0;
-    return r.bag.splice(i, 1)[0];
+    const G = r.bag.splice(i, 1)[0];
+    const remix = r.cycle >= 1 && Math.random() < CFG.classicRemix ? Remixes.pick(G, chooseModeAny(G), Math.random) : null;
+    return { G, remix };
   },
 
-  enterInter(result) {
+  // Scores the game that just ended, then sets up the next interstitial (or ends the stage / run / practice round).
+  enterInter(result, banner = null) {
     const r = this.run, gph = this.ph;
-    let banner = null;
     const from = r.points;
+    let note = null;
     r.lastPts = 0;
-    if (result && !r.practice) {
+    if (result && r.mode !== 'practice') {
       const G = this.G, won = result === 'won';
       if (won) {
-        const spare = G.inverted ? 0 : Math.max(0, G.beats - (gph.resultBeat || G.beats));
-        r.lastPts = pointsFor({ level: r.level, bpm: r.bpm, spare, streak: r.streak });
+        const spare = G.inverted ? 0 : Math.max(0, this.beats - (gph.resultBeat || this.beats));
+        const mult = (r.mode === 'run' && r.stage ? r.stage.mult || 1 : 1) * (this.remix ? 1.25 : 1);
+        r.lastPts = Math.round(pointsFor({ level: r.level, bpm: gph.bpm || r.bpm, spare, streak: r.streak }) * mult / 10) * 10;
         r.points += r.lastPts; r.streak++; r.bestStreak = Math.max(r.bestStreak, r.streak);
+        if (G.boss) { r.lives = Math.min(r.maxLives, r.lives + 1); note = '+1 BATTERY'; }
       } else r.streak = 0;
-      r.log.push({ id: G.id, verb: verbOf(G, this.mode), won, pts: r.lastPts });
+      r.log.push({ id: G.id, verb: verbOf(G, this.mode) + (this.remix ? ' ✦' : ''), won, pts: r.lastPts });
       History.recordGame(G.id, won);
+      Achievements.event('game', { G, won, mode: this.mode, remix: this.remix, level: r.level, bpm: gph.bpm || r.bpm, session: r.mode, streak: r.streak, spare: won ? Math.max(0, this.beats - (gph.resultBeat || this.beats)) : 0 });
     }
     if (result === 'won') r.score++;
-    if (result === 'lost' && !r.practice) r.lives--;
-    if (result && r.practice) { this.state = 'presult'; UI.practiceResult(result, this.G, this.mode); return; }
+    if (result === 'lost' && r.mode !== 'practice') {
+      r.lives--;
+      // In a run, a lost boss comes straight back: you beat it or run out of batteries.
+      if (r.mode === 'run' && this.G.boss && r.lives > 0) r.queue.unshift({ G: this.G, remix: null });
+    }
+    if (result && r.mode === 'practice') { this.state = 'presult'; UI.practiceResult(result, this.G, this.mode); return; }
+    const inter = (extra) => { this.ph = { kind: 'inter', t: 0, spb: 60 / r.bpm, result, banner: null, lastBeat: -1, from, note, ...extra }; this.state = 'inter'; };
     if (result) {
       r.idx++; r.played++;
-      if (r.lives <= 0) { this.ph = { kind: 'inter', t: 0, beats: 3, spb: 60 / r.bpm, result, banner: null, end: 'over', lastBeat: -1, from }; this.state = 'inter'; return; }
-      if (r.idx >= CFG.cycleLen) {
-        r.cycle++; r.idx = 0; r.level = Math.min(3, r.cycle + 1); r.lives = Math.min(CFG.lives, r.lives + 1);
-        r.bpm = Math.min(CFG.maxBpm, CFG.tiers[0] + 8 * r.cycle); banner = 'LEVEL UP!';
-      } else {
-        const k = CFG.speedAt.indexOf(r.idx);
-        if (k >= 0) { r.bpm = Math.min(CFG.maxBpm, CFG.tiers[k + 1] + 8 * r.cycle); banner = 'FASTER!'; }
+      if (r.mode === 'party') {
+        // The current player's turn ends after 3 games, or when their batteries run out.
+        Party.writeBack(r);
+        r.turnGames++;
+        if (r.lives <= 0 || r.turnGames >= PARTY.turnLen) { inter({ beats: 3, end: 'turn' }); return; }
+      } else if (r.lives <= 0) { inter({ beats: 3, end: 'over' }); return; }
+      if (r.mode === 'daily' && !r.queue.length) { inter({ beats: 3, end: 'daily' }); return; }
+      if (r.mode === 'run' && !r.queue.length) { inter({ beats: 3, end: 'stage' }); return; }
+      if (r.mode === 'classic') {
+        if (r.idx >= CFG.cycleLen) {
+          r.cycle++; r.idx = 0; r.level = Math.min(3, r.cycle + 1); r.lives = Math.min(r.maxLives, r.lives + 1);
+          r.bpm = Math.min(CFG.maxBpm, CFG.tiers[0] + 8 * r.cycle); banner = 'LEVEL UP!';
+        } else {
+          const k = CFG.speedAt.indexOf(r.idx);
+          if (k >= 0) { r.bpm = Math.min(CFG.maxBpm, CFG.tiers[k + 1] + 8 * r.cycle); banner = 'FASTER!'; }
+          if (r.idx === CFG.cycleLen - 1 && Games.bosses.length) banner = 'BOSS!';
+        }
       }
     }
-    const next = this.pickNext();
-    this.ph = { kind: 'inter', t: 0, beats: CFG.interBeats + (banner ? CFG.bannerBeats : 0), spb: 60 / r.bpm, result, banner, next, mode: chooseMode(next), lastBeat: -1, from };
-    this.state = 'inter';
+    const nx = this.pickNext();
+    inter({ beats: CFG.interBeats + (banner ? CFG.bannerBeats : 0), banner, next: nx.G, remix: nx.remix, mode: chooseModeAny(nx.G), item: nx });
     Hub.calReset();
-    Sound.duck(next.sensor === 'mic' && this.ph.mode === 'sensor');
+    Sound.duck(nx.G.sensor === 'mic' && this.ph.mode === 'sensor');
   },
 
   beginGame() {
     const r = this.run, G = this.ph.next;
     Hub.calLock();
-    this.G = G; this.mode = chooseMode(G);
+    this.G = G; this.mode = chooseModeAny(G); this.remix = this.ph.remix || null;
+    // This game's tempo: the stage tempo, plus the run's per-game climb, Slow Start, and the TURBO remix.
+    const item = this.ph.item || {};
+    let bpm = item.bpm || r.bpm;
+    if (item.level) r.level = item.level;
+    if (r.mode === 'run' && r.stage) bpm = r.stage.bpm + (r.stage.step || 0) * r.stageGame;
+    if (this.remix && this.remix.bpmMul) bpm *= this.remix.bpmMul;
+    bpm = U.clamp(Math.round(bpm), 100, CFG.maxBpm);
+    this.beats = G.beats;
     const seed = (Date.now() ^ (r.played * 7919)) >>> 0;
-    this.inst = G.create({ level: r.level, rng: makeRng(seed), bpm: r.bpm, mode: this.mode });
-    this.botCtx = { state: {}, rng: makeRng(seed + 1), delay: 0.3, mode: this.mode };
-    this.ph = { kind: 'game', t: 0, spb: 60 / r.bpm, lastBeat: -1, endAt: Infinity };
-    this.flash = null;
-    r.last = G.sensor; r.sinceCam = G.sensor === 'cam' ? 0 : r.sinceCam + 1;
+    const can = canFor(this.mode);
+    this.inst = G.create({ level: r.level, rng: makeRng(seed), bpm, mode: this.mode, can });
+    this.botCtx = { state: {}, rng: makeRng(seed + 1), delay: 0.3, mode: this.mode, can };
+    this.ph = { kind: 'game', t: 0, spb: 60 / bpm, bpm, lastBeat: -1, endAt: Infinity };
+    this.flash = null; this.lastTouch = null;
+    r.last = G.sensor; r.sinceCam = G.sensor === 'cam' ? 0 : r.sinceCam + 1; r.stageGame++;
     this.state = 'game';
     Hub.clearInput();
     Sound.sfx('verb');
   },
 
-  beat() { const p = this.ph; return { t: p.t, beat: p.t / p.spb, spb: p.spb, bpm: 60 / p.spb, beats: this.G ? this.G.beats : 8 }; },
+  beat() { const p = this.ph; return { t: p.t, beat: p.t / p.spb, spb: p.spb, bpm: 60 / p.spb, beats: this.beats }; },
 
   tick(dt, now) {
     const p = this.ph;
@@ -811,18 +1027,27 @@ const Engine = {
         p.lastBeat = bi;
         Sound.beat(bi, 'inter', p.spb);
         if (bi === 0 && p.result) { Sound.sfx(p.result === 'won' ? 'win' : 'lose'); U.buzz(p.result === 'won' ? 30 : [80, 40, 80]); }
+        if (bi === 1) Achievements.flush(); // award pop-ups wait for the gap between games
         if (p.banner && bi === CFG.interBeats - 1) Sound.sfx(p.banner === 'FASTER!' ? 'speed' : 'level');
       }
       Hub.frame(dt, now); // keep sampling so calibration sees fresh data
-      if (b >= p.beats) { if (p.end === 'over') this.gameOver(); else this.beginGame(); }
+      if (b >= p.beats) {
+        if (p.end === 'over') this.gameOver();
+        else if (p.end === 'stage') { this.state = 'between'; RunMode.stageDone(); }
+        else if (p.end === 'turn') { this.state = 'between'; Party.turnDone(); }
+        else if (p.end === 'daily') { this.state = 'between'; Daily.finish(); }
+        else this.beginGame();
+      }
     } else if (this.state === 'game') {
       p.t += dt;
       const B = this.beat(), G = this.G, inst = this.inst;
       let f = Hub.frame(dt, now);
+      if (f.pointers.length) this.lastTouch = { x: f.pointers[0].x, y: f.pointers[0].y }; // screen-space, aims the torch
+      f = Remixes.mapFrame(this.remix, f, p.t); // real input → the game's own coordinates
       if (FLAGS.autoplay) {
-        // Bots provide their own touches; drop real ones so they don't fight.
+        // Bots provide their own touches (already in game coordinates); drop real ones so they don't fight.
         f.pointers = []; f.taps = [];
-        f = mergeFrame(f, G.bot(inst, B, this.botCtx));
+        if (!this.botsOff) f = mergeFrame(f, G.bot(inst, B, this.botCtx));
       } else if (FLAGS.mock && this.mode === 'sensor') {
         f = mergeFrame(f, { mic: { rms: 0.008, ambient: 0.008 }, cam: { lum: 0.5, base: 0.5, ok: true } });
       }
@@ -830,15 +1055,15 @@ const Engine = {
       if (bi > p.lastBeat) {
         p.lastBeat = bi;
         Sound.beat(bi, 'game', p.spb);
-        if (inst.status === 'playing' && bi >= G.beats - 4 && bi < G.beats) {
+        if (inst.status === 'playing' && bi >= this.beats - 4 && bi < this.beats) {
           // Countdown tick + buzz, except while the mic is listening: the phone would hear its own speaker and motor.
           if (!(G.sensor === 'mic' && this.mode === 'sensor')) { Sound.sfx('tick'); U.buzz(12); }
         }
       }
       inst.update(dt, f, B);
-      if (inst.status === 'playing' && B.beat >= G.beats) inst.status = resolveTimeout(G, inst);
+      if (inst.status === 'playing' && B.beat >= this.beats) inst.status = resolveTimeout(G, inst);
       if (inst.status !== 'playing' && p.endAt === Infinity) {
-        p.endAt = Math.min(Math.floor(B.beat) + 2, G.beats + 1);
+        p.endAt = Math.min(Math.floor(B.beat) + 2, this.beats + 1);
         p.resultBeat = B.beat;
         this.flash = { kind: inst.status, t: 0 };
         U.buzz(inst.status === 'won' ? 25 : 60);
@@ -850,10 +1075,13 @@ const Engine = {
 
   gameOver() {
     const r = this.run;
+    if (r.mode === 'run') { this.state = 'between'; RunMode.runOver(false); return; }
+    if (r.mode === 'daily') { this.state = 'between'; Daily.finish(); return; }
     this.state = 'over';
     const prevBest = History.best();
     if (r.score > U.store.get('best', 0)) U.store.set('best', r.score);
     const isBest = History.recordRun(r);
+    Achievements.event('classicEnd', { cleared: r.score, points: r.points, level: r.level, bpm: r.bpm });
     Hub.stopMedia(); Sound.duck(true);
     UI.showOver(r, Math.max(prevBest, r.points), isBest && r.points > 0);
   },
@@ -863,8 +1091,9 @@ const Engine = {
   // Headless simulation for check.mjs: one game, fixed timestep, a driver supplying the input.
   sim({ id, level = 1, bpm = 120, seed = 1, driver = 'bot', mode = 'sensor', fps = 60, delay = 0.3 }) {
     const G = Games.byId[id];
-    const inst = G.create({ level, rng: makeRng(seed), bpm, mode });
-    const ctx = { state: {}, rng: makeRng(seed * 31 + 7), delay, mode };
+    const can = mode === 'sensor' ? { tilt: true, motion: true, mic: true, cam: true } : { tilt: false, motion: false, mic: false, cam: false };
+    const inst = G.create({ level, rng: makeRng(seed), bpm, mode, can });
+    const ctx = { state: {}, rng: makeRng(seed * 31 + 7), delay, mode, can };
     const spb = 60 / bpm, dt = 1 / fps;
     for (let t = 0; ; t += dt) {
       const B = { t, beat: t / spb, spb, bpm, beats: G.beats };
@@ -891,6 +1120,87 @@ function mash(ctx, B) {
   out.cam = { lum: 0.3 + r() * 0.4, motion: r() * 0.2 };
   return out;
 }
+
+/* ---- 42-remix.js ---- */
+// Remixes: a twist laid over ANY microgame without the game knowing. They change how a game is drawn
+// (a transform or an overlay), map real touches and tilt back into the game's own coordinates, or
+// change its tempo. 24 games × 7 remixes ≈ 170 versions that feel different.
+//
+// A remix: { id, name (shown under the verb), m(t) → [a,b,c,d,e,f] canvas transform about the stage,
+//            tilt: [sx, sy] multipliers so tilting toward what you SEE still works, overlay: 'dark'|'flicker',
+//            bpmMul }. Games opt out with `noRemix: true` or `noRemix: ['tiny', ...]`.
+const RMX_CX = STAGE_W / 2, RMX_CY = STAGE_H / 2;
+const about = (a, b, c, d) => [a, b, c, d, RMX_CX - a * RMX_CX - c * RMX_CY, RMX_CY - b * RMX_CX - d * RMX_CY]; // linear map about the centre
+
+const Remixes = {
+  list: [
+    { id: 'mirror', name: 'MIRROR', m: () => about(-1, 0, 0, 1), tilt: [-1, 1] },
+    { id: 'flip', name: 'UPSIDE DOWN', m: () => about(-1, 0, 0, -1), tilt: [-1, -1] },
+    { id: 'tiny', name: 'TINY', m: () => about(0.6, 0, 0, 0.6) },
+    {
+      id: 'wobble', name: 'WOBBLY',
+      m: (t) => { const a = Math.sin(t * 2.6) * 0.12, s = 1 + Math.sin(t * 1.7) * 0.05; return about(Math.cos(a) * s, Math.sin(a) * s, -Math.sin(a) * s, Math.cos(a) * s); },
+    },
+    { id: 'dark', name: 'LIGHTS OUT', overlay: 'dark' },
+    { id: 'flicker', name: 'FLICKER', overlay: 'flicker' },
+    { id: 'turbo', name: 'TURBO', bpmMul: 1.25 },
+  ],
+  byId: {},
+  // Remixes this game accepts. Camera games keep their lens at the top of the real screen, so no flipping or shrinking;
+  // multi-finger games stay full size.
+  allowed(G, mode) {
+    if (G.noRemix === true || G.boss) return [];
+    const block = new Set(Array.isArray(G.noRemix) ? G.noRemix : []);
+    if (G.sensor === 'cam' && mode === 'sensor') ['mirror', 'flip', 'tiny', 'wobble'].forEach((id) => block.add(id));
+    if (['pinch', 'hold'].includes(G.id)) block.add('tiny');
+    return Remixes.list.filter((x) => !block.has(x.id));
+  },
+  pick(G, mode, rng) { const a = Remixes.allowed(G, mode); return a.length ? a[Math.floor(rng() * a.length)] : null; },
+
+  matrix(rx, t) { return rx && rx.m ? rx.m(t) : null; },
+  invert(m) {
+    const [a, b, c, d, e, f] = m, det = a * d - b * c;
+    return [d / det, -b / det, -c / det, a / det, (c * f - d * e) / det, (b * e - a * f) / det];
+  },
+  apply(m, x, y) { return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] }; },
+
+  // Real input → game coordinates. (Bots already speak game coordinates, so they skip this.)
+  mapFrame(rx, f, t) {
+    if (!rx) return f;
+    const m = Remixes.matrix(rx, t);
+    if (m) {
+      const inv = Remixes.invert(m);
+      f.pointers = f.pointers.map((p) => ({ ...p, ...Remixes.apply(inv, p.x, p.y) }));
+      f.taps = f.taps.map((p) => ({ ...p, ...Remixes.apply(inv, p.x, p.y) }));
+    }
+    if (rx.tilt) f.tilt = { x: f.tilt.x * rx.tilt[0], y: f.tilt.y * rx.tilt[1] };
+    return f;
+  },
+
+  // Draw the game under the remix. `lastTouch` (stage coords, screen space) aims the dark remix's torch.
+  draw(rx, g, t, drawGame, lastTouch) {
+    const m = Remixes.matrix(rx, t);
+    if (m) {
+      if (rx.id === 'tiny') { fillView(g, '#16238F'); g.save(); Art.rr(g, RMX_CX - 112, RMX_CY - 198, 224, 396, 18); g.fillStyle = INK; g.fill(); g.restore(); }
+      g.save(); g.transform(...m);
+      if (rx.id === 'tiny') { g.beginPath(); g.rect(0, 0, STAGE_W, STAGE_H); g.clip(); }
+      drawGame(); g.restore();
+    } else drawGame();
+    if (!rx) return;
+    if (rx.overlay === 'dark') {
+      // A torch: a soft hole around the last touch (or the middle), everything else near-black.
+      const x = lastTouch ? lastTouch.x : RMX_CX, y = lastTouch ? lastTouch.y : RMX_CY, r = lastTouch ? 120 : 150;
+      const grd = g.createRadialGradient(x, y, r * 0.55, x, y, r);
+      grd.addColorStop(0, 'rgba(4,6,20,0)'); grd.addColorStop(1, 'rgba(4,6,20,0.94)');
+      g.save(); g.fillStyle = grd; g.fillRect(VIEW.x0, VIEW.y0, VIEW.x1 - VIEW.x0, VIEW.y1 - VIEW.y0); g.restore();
+    } else if (rx.overlay === 'flicker') {
+      // Lights cut out for a beat-ish now and then (visible ~60% of the time).
+      const k = Math.sin(t * 5.3) + Math.sin(t * 8.9 + 1);
+      if (k > 0.65) { g.save(); g.globalAlpha = 0.93; fillView(g, '#05061A'); g.restore(); }
+    }
+  },
+};
+Remixes.list.forEach((x) => { Remixes.byId[x.id] = x; });
 
 /* ---- 45-hud.js ---- */
 // What's drawn around the games: the between-games screen (score, battery lives, banners,
@@ -931,11 +1241,16 @@ function drawInter(g, ph, run, time) {
     }
     const sub = `${run.score} CLEARED` + (run.streak >= 2 ? `  ·  STREAK ×${run.streak}` : '');
     Art.text(g, sub, 180, 340, 15, { font: BODY, weight: 800, w: 0, shadow: false, fill: '#FFF8E8' });
-    for (let i = 0; i < CFG.lives; i++) {
-      const justLost = ph.result === 'lost' && i === run.lives;
-      drawBattery(g, 75 + i * 70, 420, i < run.lives, justLost ? 1 - U.clamp(b, 0, 1) : 0);
+    const n = run.maxLives || CFG.lives, gap = Math.min(70, 300 / Math.max(1, n - 1));
+    for (let i = 0; i < n; i++) {
+      const justLost = ph.result === 'lost' && i === run.lives && ph.note !== 'SHIELD!';
+      drawBattery(g, 180 - ((n - 1) * gap) / 2 + i * gap, 420, i < run.lives, justLost ? 1 - U.clamp(b, 0, 1) : 0);
     }
-    const lvl = `LEVEL ${run.level} · ${Math.round(run.bpm)} BPM`;
+    const lvl = run.mode === 'run' ? `ACT ${RunMode.r ? RunMode.r.act : 1} · LEVEL ${run.level}`
+      : run.mode === 'daily' ? `DAILY #${Daily.number(run.date)} · GAME ${Math.min(run.total, run.played + 1)} OF ${run.total}`
+      : run.mode === 'party' ? `${run.players[run.cur].name.toUpperCase()} · ROUND ${run.round + 1} · GAME ${Math.min(PARTY.turnLen, run.turnGames + 1)} OF ${PARTY.turnLen}`
+      : `LEVEL ${run.level} · ${Math.round(run.bpm)} BPM`;
+    if (ph.note && b < 3) Art.text(g, ph.note, 180, 384, 18, { fill: '#FFD23F', w: 5 });
     Art.text(g, lvl, 180, 470, 13, { font: BODY, weight: 800, w: 0, shadow: false, fill: 'rgba(255,248,232,.7)' });
   } else {
     Art.text(g, 'PRACTICE', 180, 300, 18, { font: BODY, weight: 800, w: 0, shadow: false, fill: 'rgba(255,248,232,.8)' });
@@ -948,7 +1263,7 @@ function drawInter(g, ph, run, time) {
     g.fillStyle = '#FFD23F'; g.fillRect(-260, -52, 520, 104);
     g.fillStyle = INK; for (let x = -260; x < 260; x += 40) { g.beginPath(); g.moveTo(x, -52); g.lineTo(x + 20, -52); g.lineTo(x, -42); g.closePath(); g.fill(); g.beginPath(); g.moveTo(x + 20, 52); g.lineTo(x + 40, 52); g.lineTo(x + 40, 42); g.closePath(); g.fill(); }
     g.restore();
-    Art.text(g, ph.banner, 180, 300, 52, { rot: -0.12, scale: pulse, fill: '#FF5FA2' });
+    Art.text(g, ph.banner, 180, 300, 52, { rot: -0.12, scale: pulse, maxW: 320, fill: '#FF5FA2' });
   }
 
   // Next game's sensor: the one hint before the verb.
@@ -957,11 +1272,11 @@ function drawInter(g, ph, run, time) {
     const k = U.ease.outBack(U.clamp((b - (ph.beats - 1.6)) / 0.35, 0, 1));
     Art.circle(g, 180, 560, 50 * k); g.fillStyle = '#FFD23F'; g.fill(); Art.ink(g, 5);
     Art.icon(g, kind, 180, 560, 64 * k, time);
-    Art.text(g, SENSOR_LABEL[kind].toUpperCase(), 180, 626, 14, { font: BODY, weight: 800, w: 0, shadow: false, fill: '#FFF8E8' });
+    Art.text(g, SENSOR_LABEL[kind].toUpperCase() + (ph.remix ? ` · ${ph.remix.name}` : ''), 180, 626, 14, { font: BODY, weight: 800, w: 0, shadow: false, fill: ph.remix ? '#FFD23F' : '#FFF8E8' });
   }
 }
 
-function drawGameHud(g, G, inst, B, mode, flash, time) {
+function drawGameHud(g, G, inst, B, mode, flash, time, remix) {
   const bt = B.beat;
   // The verb: big for the first beat, then tucked in the corner.
   if (bt < 1.1) {
@@ -969,6 +1284,7 @@ function drawGameHud(g, G, inst, B, mode, flash, time) {
     const out = bt > 0.9 ? 1 - (bt - 0.9) / 0.2 : 1;
     g.save(); g.globalAlpha = U.clamp(out, 0, 1);
     Art.text(g, verbOf(G, mode), 180, 300, verbOf(G, mode).length > 7 ? 50 : 64, { scale: s, rot: -0.06, maxW: 330, fill: '#FFF8E8' });
+    if (remix) Art.text(g, `✦ ${remix.name} ✦`, 180, 248, 20, { scale: s, rot: -0.06, fill: '#FFD23F', w: 5 });
     if (mode === 'touch' && G.sensor !== 'touch') { Art.circle(g, 180, 372, 30 * s); g.fillStyle = '#FFD23F'; g.fill(); Art.ink(g, 4); Art.icon(g, 'touch', 180, 374, 40 * s, time); }
     g.restore();
   } else {
@@ -976,7 +1292,7 @@ function drawGameHud(g, G, inst, B, mode, flash, time) {
   }
 
   // Fuse: burns down over the whole game; the last 4 beats count down.
-  const left = U.clamp(1 - bt / G.beats, 0, 1);
+  const left = U.clamp(1 - bt / B.beats, 0, 1);
   const x0 = 50, len = 292 * left, y = 618;
   if (len > 1) {
     g.beginPath(); g.moveTo(x0, y); g.lineTo(x0 + len, y); g.lineWidth = 11; g.strokeStyle = INK; g.lineCap = 'round'; g.stroke();
@@ -990,7 +1306,7 @@ function drawGameHud(g, G, inst, B, mode, flash, time) {
   }
   Art.circle(g, 30, 612, 19); g.fillStyle = INK; g.fill();
   Art.circle(g, 24, 606, 5); g.fillStyle = 'rgba(255,255,255,.6)'; g.fill();
-  const cd = G.beats - Math.floor(bt);
+  const cd = B.beats - Math.floor(bt);
   if (inst.status === 'playing' && cd >= 1 && cd <= 4) {
     const k = 1 + 0.4 * Math.pow(1 - (bt % 1), 3);
     Art.text(g, String(cd), 30, 566, 34, { scale: k, fill: cd === 1 ? '#FF5FA2' : '#FFD23F' });
@@ -1018,6 +1334,409 @@ function drawAttract(g, time) {
     g.save(); g.globalAlpha = 0.16; Art.icon(g, k, x, y, 70, time + i); g.restore();
   });
 }
+
+/* ---- 47-run.js ---- */
+// ADVENTURE mode (code name RunMode): three acts, each a small branching map (RunMap, 85-map.js) climbed
+// bottom to top. Stops: Stage (5 games), Remix (5 remixed games, ×1.5 points), Rest (+1 battery, or an extra
+// battery slot when full), Boss (ends the act). Lose every battery and the adventure is over, but every
+// finished adventure unlocks new games for the next one (Meta), so losing still moves you forward.
+// The coin shop and perks were removed on 2026-11-04 (Edwin: "didn't make sense"); shop stops became rests.
+
+// Unlocks carry between adventures, per phone. The first starts with 12 games covering every kind of input;
+// each finished adventure (win or lose) adds 3 more, in this order. Classic, Daily and Party use every game.
+const STARTERS = ['swat', 'dont', 'stop', 'pop', 'zip', 'catch', 'trace', 'hold', 'pour', 'shake', 'blow', 'cover'];
+const UNLOCK_ORDER = ['slice', 'rub', 'plug', 'roll', 'clap', 'flip', 'pinch', 'balance', 'shh', 'wave', 'freeze', 'hum'];
+const Meta = {
+  get() {
+    const m = U.store.get('meta', null) || {};
+    return { unlocked: Array.isArray(m.unlocked) ? m.unlocked : STARTERS.slice(), runs: m.runs || 0, wins: m.wins || 0, bestAct: m.bestAct || 0 };
+  },
+  save(m) { U.store.set('meta', m); },
+  pool() {
+    const ids = FLAGS.all ? Games.regular.map((G) => G.id) : Meta.get().unlocked;
+    const pool = ids.map((id) => Games.byId[id]).filter((G) => G && !G.boss);
+    // Safety nets: game ids changed, or an isolated test build with only a few games in it.
+    return pool.length >= 5 ? pool : Games.regular.length ? Games.regular : Games.list;
+  },
+  // Records a finished adventure and returns the newly unlocked game ids.
+  finish(act, won) {
+    const m = Meta.get();
+    m.runs++; if (won) m.wins++; m.bestAct = Math.max(m.bestAct, won ? 4 : act);
+    const order = UNLOCK_ORDER.concat(Games.regular.map((G) => G.id)).filter((id, i, a) => a.indexOf(id) === i && Games.byId[id]);
+    const fresh = order.filter((id) => !m.unlocked.includes(id)).slice(0, 3);
+    m.unlocked = m.unlocked.concat(fresh);
+    Meta.save(m);
+    return fresh;
+  },
+};
+
+const ACT_BPM = [120, 132, 144];
+const STAGE_LEN = 5;
+const MAX_SLOTS = 6;
+
+const RunMode = {
+  r: null, // the adventure: { seed, step, act, map, at, visited, bag, bossNo }; Engine.run holds batteries and points
+
+  rng() { const r = this.r; r.step = (r.step || 0) + 1; return makeRng((r.seed + r.step * 7919) >>> 0); },
+  newMap(act) {
+    const map = RunMap.generate(act, this.rng());
+    for (const id of Object.keys(map.nodes)) if (map.nodes[id].type === 'shop') map.nodes[id].type = 'rest'; // no shop any more
+    return map;
+  },
+
+  hasSave() { const s = U.store.get('run', null); return !!(s && s.r && s.e); },
+
+  start() {
+    this.r = { seed: (Date.now() & 0x7fffffff) >>> 0, step: 0, act: 1, at: null, visited: [], bag: [], bossNo: 0 };
+    this.r.map = this.newMap(1);
+    Engine.newSession('run', { maxLives: CFG.lives, lives: CFG.lives });
+    this.save();
+    this.showMap();
+  },
+  resume() {
+    const s = U.store.get('run', null);
+    if (!s) return this.start();
+    this.r = s.r;
+    Engine.newSession('run', s.e);
+    this.showMap();
+  },
+  // Saved at every map visit, so a phone call or a closed tab doesn't lose the adventure.
+  save() {
+    const e = Engine.run;
+    const keep = ['lives', 'maxLives', 'score', 'played', 'points', 'streak', 'bestStreak', 'log'];
+    U.store.set('run', { r: this.r, e: Object.fromEntries(keep.map((k) => [k, e[k]])) });
+  },
+  clearSave() { U.store.set('run', null); },
+
+  view() {
+    const e = Engine.run, r = this.r;
+    return { act: r.act, acts: 3, map: r.map, at: r.at, visited: r.visited.slice(), lives: e.lives, maxLives: e.maxLives, coins: null, points: e.points, perks: [] };
+  },
+  showMap() {
+    // Camera and mic are off while you browse the map and rest stops; a stage turns them back on.
+    if (Hub.live) Hub.stopMedia();
+    Engine.state = 'map';
+    UI.show('map');
+    RunMap.render(document.getElementById('map-root'), this.view(), (id) => this.pick(id));
+    if (FLAGS.autoplay && !FLAGS.nostart && !FLAGS.shot) setTimeout(() => this.autoStep(), 600);
+  },
+
+  // Five games for a stage, from this phone's unlocked pool: a shuffled bag across the adventure (few repeats),
+  // never the same sensor twice in a row.
+  draw5(remixed) {
+    const r = this.r, pool = Meta.pool(), rng = this.rng(), out = [];
+    let last = null;
+    for (let i = 0; i < STAGE_LEN; i++) {
+      if (!r.bag.length) r.bag = U.shuffle(pool.map((G) => G.id), rng);
+      if (!r.bag.length) break;
+      let k = r.bag.findIndex((id) => Games.byId[id].sensor !== last);
+      if (k < 0) k = 0;
+      const G = Games.byId[r.bag.splice(k, 1)[0]];
+      last = G.sensor;
+      out.push({ G, remix: remixed ? Remixes.pick(G, chooseModeAny(G), rng) : null });
+    }
+    return out;
+  },
+
+  pick(id) {
+    const r = this.r, node = r.map.nodes[id];
+    if (!node || !RunMap.reachable(r.map, r.at).includes(id)) return;
+    r.at = id; r.visited.push(id);
+    this.node = node;
+    if ((node.type === 'stage' || node.type === 'remix' || node.type === 'boss') && Hub.hadMedia && !FLAGS.mock) Hub.openMedia(); // already granted: no prompt
+    const act = r.act, base = ACT_BPM[act - 1];
+    if (node.type === 'stage' || node.type === 'remix') {
+      const remix = node.type === 'remix';
+      UI.show(null);
+      Engine.playStage({ kind: node.type, label: remix ? 'REMIX!' : `STAGE ${act}-${node.row + 1}`, items: this.draw5(remix), level: act, bpm: base + (remix ? 6 : 0), step: 6, mult: remix ? 1.5 : 1 });
+    } else if (node.type === 'boss') {
+      const bosses = Games.bosses;
+      const items = bosses.length ? [{ G: bosses[r.bossNo++ % bosses.length], remix: null }] : this.draw5(act >= 2).slice(0, 3);
+      UI.show(null);
+      Engine.playStage({ kind: 'boss', label: 'BOSS!', items, level: Math.min(3, act + 1), bpm: base, step: 0, mult: 2 });
+    } else { Engine.state = 'rest'; UI.showRest(); }
+  },
+
+  // Called by the engine after a stage's last game (or after the boss is beaten).
+  stageDone() {
+    const r = this.r;
+    if (this.node && this.node.type === 'boss') {
+      Achievements.event('actCleared', { act: r.act });
+      if (r.act >= 3) return this.runOver(true);
+      r.act++; r.at = null; r.visited = [];
+      r.map = this.newMap(r.act);
+      UI.toast(`Act ${r.act - 1} cleared!`);
+    }
+    this.save();
+    this.showMap();
+  },
+
+  // Rest: +1 battery, or a new (filled) battery slot when every battery is already charged.
+  rest() {
+    const e = Engine.run;
+    if (e.lives < e.maxLives) e.lives++;
+    else if (e.maxLives < MAX_SLOTS) { e.maxLives++; e.lives++; }
+    this.save(); this.showMap();
+  },
+
+  runOver(won) {
+    const e = Engine.run, r = this.r;
+    const fresh = Meta.finish(r.act, won);
+    const prevBest = History.best();
+    const isBest = History.recordRun(e, { act: won ? 3 : r.act, won });
+    Achievements.event('adventureEnd', { won, act: r.act });
+    this.clearSave();
+    Hub.stopMedia(); Sound.duck(true);
+    Engine.state = 'runend';
+    UI.showRunEnd({ won, act: r.act, points: e.points, cleared: e.score, played: e.played, log: e.log, fresh, best: Math.max(prevBest, e.points), isBest: isBest && e.points > 0 });
+  },
+
+  // Autopilot for tests and the autoplay demo: always the first reachable stop; rest when offered.
+  autoStep() {
+    const s = Engine.state;
+    if (s === 'map') { const ids = RunMap.reachable(this.r.map, this.r.at); if (ids.length) this.pick(ids[0]); }
+    else if (s === 'rest') this.rest();
+  },
+};
+
+/* ---- 48-achievements.js ---- */
+// Achievements: 27 goals across every mode, per phone (localStorage `jolt/ach`). The engine and modes report
+// events (game, classicEnd, actCleared, adventureEnd, dailyEnd, partyEnd); unlocks queue up and are toasted
+// between games, never over one. The Awards screen (80-ui.js) lists them with progress.
+const ACHIEVEMENTS = [
+  { id: 'first', name: 'First Jolt', glyph: '1', desc: 'Clear your first game.' },
+  { id: 'streak10', name: 'On Fire', glyph: '10', desc: 'Clear 10 games in a row.' },
+  { id: 'streak25', name: 'Unstoppable', glyph: '25', desc: 'Clear 25 games in a row.' },
+  { id: 'early', name: 'Quick Draw', glyph: '⚡', desc: 'Clear a game with 6 beats to spare.' },
+  { id: 'fast', name: 'Speed Demon', glyph: '»', desc: 'Clear a game at 170 BPM or faster.' },
+  { id: 'lvl3', name: 'Level Three', glyph: '3', desc: 'Clear a game at level 3.' },
+  { id: 'classic20', name: 'Twenty Up', glyph: '20', desc: 'Clear 20 games in one Classic run.' },
+  { id: 'classic40', name: 'Marathon', glyph: '40', desc: 'Clear 40 games in one Classic run.' },
+  { id: 'points10k', name: 'Five Figures', glyph: '$', desc: 'Score 10,000 points in one Classic run.' },
+  { id: 'boss', name: 'Boss Slayer', glyph: '!', desc: 'Beat a boss.' },
+  { id: 'bake', name: 'Star Baker', glyph: 'B', desc: 'Beat BAKE!.' },
+  { id: 'robot', name: 'Scrap Metal', glyph: 'R', desc: 'Beat SMASH!.' },
+  { id: 'remix', name: 'Remixed', glyph: '✦', desc: 'Clear a remixed game.' },
+  { id: 'remixall', name: 'Club DJ', glyph: '♫', desc: 'Clear a game under every remix.', total: () => Remixes.list.length, count: (s) => Object.keys(s.remixes).length },
+  { id: 'allgames', name: 'Well Rounded', glyph: '◎', desc: 'Clear every game at least once.', total: () => Games.regular.length, count: (s) => Games.regular.filter((G) => s.cleared[G.id]).length },
+  { id: 'allgold', name: 'Gold Standard', glyph: '★', desc: 'Clear every game at level 3.', total: () => Games.regular.length, count: (s) => Games.regular.filter((G) => s.gold[G.id]).length },
+  { id: 'mic', name: 'Loud and Clear', glyph: 'M', desc: 'Clear every mic game using the real mic.', total: () => sensorGames('mic').length, count: (s) => sensorGames('mic').filter((G) => s.real[G.id]).length },
+  { id: 'tilt', name: 'Tilt Master', glyph: 'T', desc: 'Clear every tilt game by really tilting.', total: () => sensorGames('tilt').length, count: (s) => sensorGames('tilt').filter((G) => s.real[G.id]).length },
+  { id: 'cam', name: 'Camera Shy', glyph: 'C', desc: 'Clear every camera game with the real camera.', total: () => sensorGames('cam').length, count: (s) => sensorGames('cam').filter((G) => s.real[G.id]).length },
+  { id: 'shaker', name: 'Shaken, Not Stirred', glyph: 'S', desc: 'Clear every motion game with real motion.', total: () => sensorGames('shake').length, count: (s) => sensorGames('shake').filter((G) => s.real[G.id]).length },
+  { id: 'daily1', name: 'Daily Driver', glyph: 'D', desc: 'Finish a Daily Jolt.' },
+  { id: 'daily3', name: 'Habit', glyph: '3d', desc: 'Play the Daily 3 days in a row.' },
+  { id: 'daily7', name: 'Week Streak', glyph: '7d', desc: 'Play the Daily 7 days in a row.' },
+  { id: 'dailyperfect', name: 'Perfect Day', glyph: '✓', desc: 'Clear every game in a Daily.' },
+  { id: 'party', name: 'Party Starter', glyph: 'P', desc: 'Finish a party game.' },
+  { id: 'party4', name: 'Full House', glyph: '4P', desc: 'Finish a party with 4 or more players.' },
+  { id: 'act1', name: 'Explorer', glyph: 'A1', desc: 'Clear act 1 of an Adventure.' },
+  { id: 'adventure', name: 'World Tour', glyph: 'W', desc: 'Finish an Adventure.' },
+];
+function sensorGames(kind) { return Games.regular.filter((G) => G.sensor === kind); }
+
+const Achievements = {
+  pending: [],
+  state() {
+    const s = U.store.get('ach', null) || {};
+    return { unlocked: s.unlocked || {}, cleared: s.cleared || {}, gold: s.gold || {}, remixes: s.remixes || {}, real: s.real || {} };
+  },
+  has(id) { return !!this.state().unlocked[id]; },
+  progress(a, s = this.state()) { return a.total ? { n: a.count(s), of: a.total() } : null; },
+
+  event(kind, d) {
+    if (FLAGS.shot) return; // screenshot runs never touch the record
+    const s = this.state(), got = [];
+    const give = (id) => { if (!s.unlocked[id]) { s.unlocked[id] = Date.now(); got.push(id); } };
+    if (kind === 'game' && d.won) {
+      const G = d.G;
+      if (!G.boss) {
+        s.cleared[G.id] = 1;
+        if (d.level >= 3) s.gold[G.id] = 1;
+        if (d.mode === 'sensor' && G.sensor !== 'touch') s.real[G.id] = 1;
+      }
+      if (d.remix) { s.remixes[d.remix.id] = 1; give('remix'); }
+      give('first');
+      if (d.streak >= 10) give('streak10');
+      if (d.streak >= 25) give('streak25');
+      if (d.spare >= 6) give('early');
+      if (d.bpm >= 170) give('fast');
+      if (d.level >= 3) give('lvl3');
+      if (G.boss) { give('boss'); if (G.id === 'bake') give('bake'); if (G.id === 'robot') give('robot'); }
+    }
+    if (kind === 'classicEnd') {
+      if (d.cleared >= 20) give('classic20');
+      if (d.cleared >= 40) give('classic40');
+      if (d.points >= 10000) give('points10k');
+    }
+    if (kind === 'actCleared' && d.act >= 1) give('act1');
+    if (kind === 'adventureEnd' && d.won) give('adventure');
+    if (kind === 'dailyEnd') {
+      give('daily1');
+      if (d.streak >= 3) give('daily3');
+      if (d.streak >= 7) give('daily7');
+      if (d.cleared >= d.total) give('dailyperfect');
+    }
+    if (kind === 'partyEnd') { give('party'); if (d.players >= 4) give('party4'); }
+    // Collection goals: re-check after every update.
+    for (const a of ACHIEVEMENTS) if (a.total) { const p = this.progress(a, s); if (p.of > 0 && p.n >= p.of) give(a.id); }
+    U.store.set('ach', s);
+    this.pending.push(...got);
+    if (Engine.state !== 'game') this.flush();
+  },
+  // Show queued unlocks (called between games and on menus).
+  flush() {
+    if (!this.pending.length || typeof UI === 'undefined' || !UI.toast) return;
+    const id = this.pending.shift(), a = ACHIEVEMENTS.find((x) => x.id === id);
+    UI.toast(`Award: ${a.name}`);
+    Sound.sfx('level');
+    if (this.pending.length) setTimeout(() => this.flush(), 2400);
+  },
+};
+
+/* ---- 49-daily.js ---- */
+// DAILY JOLT: the same 16 games for everyone each day (15 games + a boss), from a seed made of the date.
+// Levels climb every 5 games, tempo climbs every game, three of the later games are remixed. One scored try
+// a day per phone (replays are allowed, not scored); a streak counts consecutive days; the result is a
+// shareable text line, Wordle-style. Records live in localStorage `jolt/daily`, last 60 days.
+const DAILY_EPOCH = Date.UTC(2026, 10, 4); // Daily #1 = 4 Nov 2026
+
+const Daily = {
+  today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; },
+  number(date = this.today()) { const [y, m, d] = date.split('-').map(Number); return Math.floor((Date.UTC(y, m - 1, d) - DAILY_EPOCH) / 864e5) + 1; },
+  records() { const r = U.store.get('daily', {}); return r && typeof r === 'object' ? r : {}; },
+  todayRecord() { return this.records()[this.today()] || null; },
+
+  // The day's games. Depends only on the date and the game list, so every phone gets the same run.
+  items(date = this.today()) {
+    const rng = makeRng(`jolt-daily-${date}`);
+    const pool = Games.regular.slice().sort((a, b) => (a.id < b.id ? -1 : 1));
+    const picks = U.shuffle(pool, rng).slice(0, 15);
+    const remixAt = U.shuffle([7, 8, 9, 10, 11, 12, 13], rng).slice(0, 3);
+    const items = picks.map((G, i) => ({
+      G, level: i < 5 ? 1 : i < 10 ? 2 : 3, bpm: Math.min(176, 120 + i * 4),
+      // Remixes chosen from those allowed in sensor mode (the strictest set), so they're valid on every phone.
+      remix: remixAt.includes(i) ? (() => { const a = Remixes.allowed(G, 'sensor'); return a.length ? a[Math.floor(rng() * a.length)] : null; })() : null,
+    }));
+    const bosses = Games.bosses.slice().sort((a, b) => (a.id < b.id ? -1 : 1));
+    if (bosses.length) items.push({ G: bosses[Math.floor(rng() * bosses.length)], level: 2, bpm: 140, remix: null });
+    return items;
+  },
+
+  start() {
+    const items = this.items();
+    Engine.newSession('daily', { queue: items.slice(), total: items.length, date: this.today(), scored: !this.todayRecord() });
+    Engine.enterInter(null, `DAILY #${this.number()}`);
+  },
+
+  // Consecutive days with a record, counting back from today (or from yesterday if today isn't played yet).
+  streak(recs = this.records()) {
+    let n = 0;
+    const d = new Date();
+    if (!recs[this.today()]) d.setDate(d.getDate() - 1);
+    for (;;) {
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!recs[k]) return n;
+      n++; d.setDate(d.getDate() - 1);
+    }
+  },
+
+  finish() {
+    const e = Engine.run;
+    const marks = e.log.map((x) => (x.won ? 1 : 0));
+    const res = { pts: e.points, cleared: e.score, total: e.total, marks, at: Date.now() };
+    const recs = this.records();
+    if (e.scored && !recs[e.date]) {
+      recs[e.date] = res;
+      const keys = Object.keys(recs).sort().slice(-60);
+      U.store.set('daily', Object.fromEntries(keys.map((k) => [k, recs[k]])));
+      History.recordRun(e, { daily: this.number(e.date) });
+    }
+    const streak = this.streak();
+    Achievements.event('dailyEnd', { cleared: e.score, total: e.total, streak });
+    Hub.stopMedia(); Sound.duck(true);
+    Engine.state = 'dailyend';
+    UI.showDailyEnd({ res, scored: e.scored, official: this.records()[e.date], number: this.number(e.date), streak });
+  },
+
+  // "Jolt Daily #3 · 12/16 · 2,840 pts" + a row of squares (green cleared, red missed, black never reached).
+  shareText(rec, number) {
+    const sq = [];
+    for (let i = 0; i < rec.total; i++) sq.push(rec.marks[i] === 1 ? '🟩' : rec.marks[i] === 0 ? '🟥' : '⬛');
+    return `Jolt Daily #${number} · ${rec.cleared}/${rec.total} · ${Number(rec.pts).toLocaleString('en-US')} pts\n${sq.slice(0, 8).join('')}\n${sq.slice(8).join('')}\n${FULL_URL || ''}`.trim();
+  },
+};
+
+/* ---- 4A-party.js ---- */
+// PARTY: pass the phone. 2–6 players take turns of 3 games; each starts with 3 batteries and a miss costs one.
+// Out of batteries = out of the party. Every full round the games get faster and harder; remixes join from
+// round 3. Last player standing wins; if several survive 6 rounds, most games cleared wins (points break ties).
+// Between turns a hand-off screen says whose turn it is, so the phone can change hands before the clock starts.
+const Party = {
+  start(names) {
+    const players = names.map((name) => ({ name, lives: PARTY.lives, cleared: 0, points: 0, out: false }));
+    U.store.set('partyNames', names);
+    Engine.newSession('party', { players, cur: 0, round: 0, turnGames: 0, lives: PARTY.lives, maxLives: PARTY.lives });
+    this.handoff();
+  },
+  get r() { return Engine.run; },
+  current() { return this.r.players[this.r.cur]; },
+
+  handoff() {
+    Engine.state = 'handoff';
+    UI.showHandoff(this.current(), this.r);
+  },
+
+  // The player tapped "I'm ready": load their batteries and score into the session, then go.
+  beginTurn() {
+    const r = this.r, p = this.current();
+    Object.assign(r, {
+      lives: p.lives, maxLives: PARTY.lives, points: p.points, score: p.cleared, streak: 0, turnGames: 0,
+      level: Math.min(3, 1 + Math.floor(r.round / 2)), bpm: Math.min(CFG.maxBpm, 120 + 10 * r.round),
+    });
+    UI.show(null);
+    Engine.enterInter(null, `${p.name.toUpperCase()}!`);
+  },
+  writeBack(r) {
+    const p = r.players[r.cur];
+    p.lives = r.lives; p.points = r.points; p.cleared = r.score;
+    if (p.lives <= 0) p.out = true;
+  },
+
+  // A shuffled bag of every regular game, shared across turns; remixes from round 3.
+  next(r) {
+    if (!r.bag.length) r.bag = U.shuffle(Games.regular.slice(), Math.random);
+    let i = r.bag.findIndex((g) => g.sensor !== r.last);
+    if (i < 0) i = 0;
+    const G = r.bag.splice(i, 1)[0];
+    const remix = r.round >= 2 && Math.random() < 0.35 ? Remixes.pick(G, chooseModeAny(G), Math.random) : null;
+    return { G, remix };
+  },
+
+  turnDone() {
+    const r = this.r, n = r.players.length;
+    const alive = r.players.filter((p) => !p.out);
+    if (alive.length <= 1) return this.end();
+    // Next player still in; passing the first seat again starts a new round.
+    let k = r.cur;
+    do { k = (k + 1) % n; } while (r.players[k].out);
+    if (k <= r.cur) r.round++;
+    r.cur = k;
+    if (r.round >= PARTY.rounds) return this.end();
+    this.handoff();
+  },
+
+  standings() {
+    return this.r.players.slice().sort((a, b) => (a.out - b.out) || (b.cleared - a.cleared) || (b.points - a.points));
+  },
+  end() {
+    const s = this.standings();
+    Achievements.event('partyEnd', { players: this.r.players.length });
+    Hub.stopMedia(); Sound.duck(true);
+    Engine.state = 'partyend';
+    UI.showPartyEnd(s);
+  },
+};
 
 /* ---- 60-g-swat.js ---- */
 // SWAT! — a fly loops around the kitchen tiles. Tap it. Level 3 adds a ladybug you must not hit.
@@ -4809,15 +5528,968 @@ function traceDraw(g, s) {
   if (lost) Art.text(g, 'FIZZLE…', 180, 540, 36, { fill: '#B47CC0', rot: 0.05, scale: U.ease.outBack(U.clamp(s.after / 0.3, 0, 1)) });
 }
 
+/* ---- 7E-g-bake.js ---- */
+// BAKE! (boss) — bake a cake in three phases, each with its own verb:
+//   WHISK! shake the phone to beat the batter smooth (touch: scrub a finger round the bowl).
+//   POUR!  tilt right to tip the bowl and fill the tin to the line, then stop (touch: drag right, let go).
+//   COOL!  blow on the steaming cake (touch: tap it to fan it).
+// Each phase checks `can` for its own sensor and falls back to touch. Run out of time on a phase, or overfill
+// the tin, and the cake's ruined. Win: a happy frosted cake. Levels tighten the time, goals and fill band.
+const BAKE_TUNE = {
+  whiskBy: [6, 5.5, 5],          // WHISK! must be done by this beat (counted from the game's start, verb beat included)
+  pourBeats: [5.5, 5, 4.75],     // beats for POUR!
+  coolBeats: [4.5, 4.25, 4],     // beats for COOL!
+  intro: 0.35,                   // beats at the start of POUR!/COOL! that ignore input while the banner pops
+  shakeGoal: [5, 6, 8],          // m/s: ∫max(0, lin − TUNE.shakeFloor)dt to whisk the batter smooth
+  scrubGoal: [1200, 1400, 1700], // touch: px of finger travel inside the bowl
+  scrubR: 175,                   // px from the bowl's centre that count as "in the bowl"
+  pourRate: 0.4,                 // tin fill per beat at a full pour (so it scales with tempo)
+  lag: 0.3,                      // beats the batter takes to fall into the tin
+  band: [[0.52, 0.84], [0.58, 0.82], [0.62, 0.82]], // the fill band around the line, per level (1 = the rim)
+  still: 0.5,                    // beats of not pouring that settle the tin
+  dragDeg: 0.4,                  // touch POUR: degrees of tip per px dragged right
+  blowHold: [0.5, 0.6, 0.7],     // seconds of blowing (in total) that cool the cake
+  blowGate: 0.08,                // a blow must last this long before it counts, so a speaker tick doesn't
+  taps: [5, 6, 6],               // touch COOL: fans on the cake
+};
+
+const BAKE_PH = [
+  { verb: 'WHISK!', bg: '#F7A8C4', dot: '#F190B3', tile: 'rgba(255,255,255,.22)', accent: '#FFE35A' },
+  { verb: 'POUR!', bg: '#84A9C0', dot: '#7499B1', tile: 'rgba(255,255,255,.16)', accent: '#FFD36B' },
+  { verb: 'COOL!', bg: '#5C6BC0', dot: '#5260B3', tile: 'rgba(255,255,255,.12)', accent: '#9FF0FF' },
+];
+const BAKE_BOWL = { x: 180, y: 360 };
+const BAKE_TIN = { x0: 182, x1: 318, y0: 372, y1: 500 };
+const BAKE_CAKE = { x: 180, top: 372, bot: 470, rx: 106, ry: 24 };
+
+function bakeMix(a, b, k) {
+  const h = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const A = h(a), Bc = h(b), kk = U.clamp(k, 0, 1);
+  return '#' + A.map((v, i) => Math.round(v + (Bc[i] - v) * kk).toString(16).padStart(2, '0')).join('');
+}
+
+Games.add({
+  id: 'bake', verb: 'BAKE!', sensor: 'shake', boss: true, beats: 16, look: '#F7A8C4',
+  create({ level, bpm, can }) {
+    const L = level - 1, c = can || {};
+    const modes = [c.motion ? 'sensor' : 'touch', c.tilt ? 'sensor' : 'touch', c.mic ? 'sensor' : 'touch'];
+    return {
+      status: 'playing', bg: BAKE_PH[0].bg, t: 0, beat: 0, spb: 60 / bpm, after: 0, L, modes,
+      ph: 0, p0: 0, dead: BAKE_TUNE.whiskBy[L], bannerAt: 1, doneAt: [], fail: null, stale: new Set(),
+      // WHISK
+      e: 0, goal: modes[0] === 'sensor' ? BAKE_TUNE.shakeGoal[L] : BAKE_TUNE.scrubGoal[L], last: new Map(), jig: 0, swirl: 0, wx: 180, drops: [],
+      // POUR
+      fill: 0, ang: 0, flow: 0, q: [], still: 0, over: 0, drag: null, band: BAKE_TUNE.band[L], rate: BAKE_TUNE.pourRate,
+      // COOL
+      heat: 1, held: 0, run: 0, fans: 0, blowing: 0, puffs: [], ducked: false,
+      shake: 0, confetti: [], words: [],
+      get prog() { return this.ph === 0 ? U.clamp(this.e / this.goal, 0, 1) : this.ph === 1 ? this.fill : 1 - this.heat; },
+
+      nextPhase(B, f) {
+        this.doneAt[this.ph] = B.beat;
+        this.ph++; this.p0 = B.beat; this.bannerAt = B.beat; this.bg = BAKE_PH[this.ph].bg;
+        this.dead = Math.min(16, B.beat + (this.ph === 1 ? BAKE_TUNE.pourBeats[L] : BAKE_TUNE.coolBeats[L]));
+        this.stale = new Set(f.pointers.map((p) => p.id)); // a finger still down from the last phase doesn't count
+        this.drag = null; this.shake = Math.max(this.shake, 5);
+        if (this.ph === 2 && modes[2] === 'sensor') { Sound.duck(true); this.ducked = true; } // the mic listens now
+        Sound.sfx('level');
+      },
+      resolve(won, why) {
+        this.status = won ? 'won' : 'lost'; this.fail = why || null; this.after = 0;
+        if (this.ducked) { Sound.duck(false); this.ducked = false; }
+        if (won) {
+          Sound.sfx('pop'); Sound.sfx('giggle'); this.shake = 8;
+          for (let i = 0; i < 40; i++) this.confetti.push({ x: 180 + (Math.random() - 0.5) * 60, y: 330, vx: (Math.random() - 0.5) * 520, vy: -250 - Math.random() * 420, r: Math.random() * TAU, c: ['#FFE35A', '#FF8FB1', '#9FF0FF', '#B6F27A', '#FFF8E8'][i % 5], t: 0 });
+        } else { Sound.sfx(why === 'spill' ? 'splash' : 'boom'); this.shake = 12; }
+      },
+      word(s, x, y, col) { this.words.push({ s, x, y, col, t: 0 }); },
+
+      update(dt, f, B) {
+        this.t += dt; this.beat = B.beat; this.spb = B.spb;
+        this.shake *= Math.pow(0.004, dt);
+        for (const d of this.drops) { d.t += dt; d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 1100 * dt; }
+        this.drops = this.drops.filter((d) => d.t < 0.8);
+        for (const p of this.puffs) p.t += dt;
+        this.puffs = this.puffs.filter((p) => p.t < 0.5);
+        for (const k of this.confetti) { k.t += dt; k.x += k.vx * dt; k.y += k.vy * dt; k.vy += 700 * dt; k.vx *= Math.pow(0.4, dt); k.r += dt * 9; }
+        for (const w of this.words) w.t += dt;
+        this.words = this.words.filter((w) => w.t < 0.9);
+        // The bowl settles back after a pour; the batter in the air keeps falling.
+        const target = this.status === 'playing' && this.ph === 1 ? this.pourTarget(f, B) : 0;
+        this.ang += (U.clamp(target, -10, 55) - this.ang) * Math.min(1, dt * 14);
+        this.flow = this.status === 'playing' && this.ph === 1 ? U.clamp((this.ang - TUNE.tiltDead) / (TUNE.tiltFull - TUNE.tiltDead), 0, 1) : 0;
+        if (this.flow > 0) { this.q.push({ a: this.flow * this.rate * dt / B.spb, t: BAKE_TUNE.lag * B.spb }); if (Math.random() < dt * 7) Sound.sfx('glug'); }
+        for (const d of this.q) d.t -= dt;
+        while (this.q.length && this.q[0].t <= 0) this.fill += this.q.shift().a;
+        if (this.status !== 'playing') { this.after += dt; this.heat = this.status === 'won' ? Math.max(0, this.heat - dt * 3) : this.heat; return; }
+        const live = this.ph === 0 || B.beat - this.p0 >= BAKE_TUNE.intro;
+
+        if (this.ph === 0) {
+          let add = 0;
+          if (modes[0] === 'sensor') { add = Math.max(0, f.lin - TUNE.shakeFloor) * dt; this.jig = this.jig * Math.pow(0.03, dt) + add * 4; }
+          else {
+            const seen = new Map();
+            for (const p of f.pointers) {
+              const inBowl = U.dist(p.x, p.y, BAKE_BOWL.x, BAKE_BOWL.y + 40) < BAKE_TUNE.scrubR;
+              const q = this.last.get(p.id);
+              if (q && inBowl && q.inBowl) add += Math.min(120, Math.hypot(p.x - q.x, p.y - q.y));
+              seen.set(p.id, { x: p.x, y: p.y, inBowl });
+              if (inBowl) this.wx = U.clamp(p.x, 110, 250);
+            }
+            this.last = seen;
+            this.jig = this.jig * Math.pow(0.03, dt) + add / 160;
+          }
+          this.e += add; this.swirl += add * (modes[0] === 'sensor' ? 2.2 : 0.02);
+          if (add > 0 && Math.random() < Math.min(0.9, this.jig * dt * 3)) {
+            const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+            this.drops.push({ x: BAKE_BOWL.x + (Math.random() - 0.5) * 160, y: BAKE_BOWL.y, vx: Math.cos(a) * 260, vy: Math.sin(a) * 380 - 120, t: 0, r: 5 + Math.random() * 6 });
+          }
+          this.shake = Math.max(this.shake, Math.min(4, this.jig * 0.4));
+          if (Math.random() < this.jig * dt * 0.6) Sound.sfx('fizz');
+          if (this.e >= this.goal) { this.word('FLUFFY!', 180, 230, '#FFE35A'); this.nextPhase(B, f); }
+        } else if (this.ph === 1) {
+          if (this.fill > 1) { this.fill = 1; this.resolve(false, 'spill'); return; }
+          const [lo, hi] = this.band, settled = this.flow === 0 && !this.q.length && live;
+          if (settled && this.fill >= lo && this.fill <= hi) { this.still += dt / B.spb; if (this.still >= BAKE_TUNE.still) { this.word('PERFECT!', 250, 330, '#FFE35A'); this.nextPhase(B, f); return; } }
+          else this.still = 0;
+          if (settled && this.fill > hi) { this.over += dt / B.spb; if (this.over >= BAKE_TUNE.still) { this.resolve(false, 'over'); return; } }
+          else this.over = 0;
+        } else {
+          let cool = 0;
+          if (modes[2] === 'sensor') {
+            const thr = Math.max(TUNE.micFloor, f.mic.ambient * TUNE.blowRel);
+            const on = live && f.mic.rms > thr;
+            this.blowing = U.lerp(this.blowing, on ? Math.min(1, f.mic.rms / (thr * 2)) : 0, Math.min(1, dt * 12));
+            if (on) {
+              this.run += dt;
+              if (this.run >= BAKE_TUNE.blowGate) this.held += this.run - dt < BAKE_TUNE.blowGate ? this.run : dt;
+            } else this.run = 0;
+            cool = this.held / BAKE_TUNE.blowHold[L];
+          } else {
+            this.blowing *= Math.pow(0.02, dt);
+            if (live) for (const tp of f.taps) {
+              if (Math.abs(tp.x - BAKE_CAKE.x) < 140 && tp.y > BAKE_CAKE.top - 110 && tp.y < BAKE_CAKE.bot + 50) {
+                this.fans++; this.blowing = 1; this.shake = Math.max(this.shake, 3);
+                this.puffs.push({ x: tp.x, y: tp.y, t: 0 }); Sound.sfx('puff');
+              }
+            }
+            cool = this.fans / BAKE_TUNE.taps[L];
+          }
+          this.heat = Math.min(this.heat, 1 - U.clamp(cool, 0, 1));
+          if (cool >= 1) { this.resolve(true); return; }
+        }
+        if (this.status === 'playing' && B.beat >= this.dead) {
+          if (this.ph === 1 && this.fill >= this.band[0] && this.fill <= this.band[1]) { this.nextPhase(B, f); return; } // in the band: close enough
+          this.resolve(false, ['lumpy', 'little', 'flop'][this.ph]);
+        }
+      },
+      pourTarget(f, B) {
+        if (B.beat - this.p0 < BAKE_TUNE.intro) return 0;
+        if (modes[1] === 'sensor') return f.tilt.x;
+        let p = this.drag ? f.pointers.find((q) => q.id === this.drag.id) : null;
+        if (!p) { this.drag = null; const n = f.pointers.find((q) => !this.stale.has(q.id)); if (n) this.drag = { id: n.id, sx: n.x }; return 0; }
+        return (p.x - this.drag.sx) * BAKE_TUNE.dragDeg;
+      },
+      timeout() { if (this.status === 'playing') this.resolve(false, ['lumpy', 'little', 'flop'][this.ph]); return 'lost'; },
+      draw(g, B) { bakeDraw(g, this, B); },
+    };
+  },
+  bot(inst, B, ctx) {
+    const s = ctx.state;
+    if (inst.status !== 'playing') return {};
+    if (s.ph !== inst.ph) { s.ph = inst.ph; s.t0 = B.t; s.lastT = B.t; s.a = 0; s.down = false; s.done = false; s.px = null; s.next = 0; }
+    const dt = B.t - s.lastT; s.lastT = B.t;
+    const mode = inst.modes[inst.ph];
+    if (B.t - s.t0 < ctx.delay) return { pointers: [] };
+    if (inst.ph === 0) {
+      if (mode === 'sensor') return { lin: 16 };
+      s.a += (2200 / 70) * dt; // a brisk circle round the bowl, 2200 px/s
+      return { pointers: [{ id: 41, x: BAKE_BOWL.x + 70 * Math.cos(s.a), y: BAKE_BOWL.y + 40 + 70 * Math.sin(s.a) }] };
+    }
+    if (inst.ph === 1) {
+      const target = (inst.band[0] + inst.band[1]) / 2;
+      const queued = inst.q.reduce((t, d) => t + d.a, 0);
+      const pour = !s.done && inst.fill + queued + inst.flow * (inst.rate / B.spb) * 0.07 < target;
+      if (!pour) s.done = true;
+      if (mode === 'sensor') return { tilt: { x: pour ? 38 : 0, y: 0 } };
+      if (!pour) return { pointers: [] };
+      if (s.px == null) { s.px = 100; return { pointers: [{ id: 42, x: s.px, y: 430 }] }; }
+      s.px = Math.min(100 + 38 / BAKE_TUNE.dragDeg, s.px + 2000 * dt);
+      return { pointers: [{ id: 42, x: s.px, y: 430 }] };
+    }
+    if (mode === 'sensor') return { mic: { rms: 0.3 } };
+    if (B.t < s.next) return {};
+    s.next = B.t + 0.13;
+    return { taps: [{ id: 43 + Math.floor(B.t * 100), x: BAKE_CAKE.x + (ctx.rng() - 0.5) * 60, y: BAKE_CAKE.top + 40 }] };
+  },
+});
+
+// ---------- drawing ----------
+function bakeDraw(g, s, B) {
+  const ph = Math.min(s.ph, 2), P = BAKE_PH[ph], t = s.t, won = s.status === 'won', lost = s.status === 'lost';
+  fillView(g, P.bg);
+  g.save(); g.globalAlpha = 0.5; Art.dots(g, P.dot, 20, 2.6); g.restore();
+  // backsplash tiles
+  g.strokeStyle = P.tile; g.lineWidth = 3;
+  for (let y = 112; y < 500; y += 48) { g.beginPath(); g.moveTo(VIEW.x0, y); g.lineTo(VIEW.x1, y); g.stroke(); }
+  for (let y = 112; y < 496; y += 48) for (let x = (y / 48) % 2 ? 0 : 24; x < VIEW.x1; x += 48) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, Math.min(500, y + 48)); g.stroke(); }
+  g.save();
+  const sh = s.shake; g.translate((Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
+  bakeKitchen(g, s);
+  if (ph === 0) bakeWhisk(g, s);
+  else if (ph === 1) bakePour(g, s);
+  else bakeCool(g, s);
+  for (const d of s.drops) { Art.circle(g, d.x, d.y, d.r); Art.fillInk(g, bakeMix('#F1D9A6', '#FFE07A', s.prog), 3); }
+  for (const w of s.words) {
+    const k = U.ease.outBack(U.clamp(w.t / 0.25, 0, 1));
+    g.save(); g.globalAlpha = U.clamp((0.9 - w.t) / 0.3, 0, 1); Art.text(g, w.s, w.x, w.y - w.t * 40, 30, { scale: k, rot: -0.08, fill: w.col }); g.restore();
+  }
+  g.restore();
+  for (const k of s.confetti) { g.save(); g.translate(k.x, k.y); g.rotate(k.r); g.fillStyle = k.c; g.fillRect(-6, -3, 12, 6); g.restore(); }
+  bakeTop(g, s, B);
+  if (won || lost) {
+    const q = U.ease.outBack(U.clamp(s.after / 0.35, 0, 1));
+    const msg = won ? 'YUM!' : { lumpy: 'LUMPY!', little: 'TOO LITTLE!', over: 'TOO MUCH!', spill: 'SPLAT!', flop: 'FLOP!' }[s.fail] || 'OOPS!';
+    Art.text(g, msg, 180, won ? 262 : 250, won ? 64 : 46, { scale: q * (won ? 1 + 0.06 * Math.sin(t * 14) : 1), rot: won ? -0.08 : 0.06, fill: won ? '#FFE35A' : '#FF8F8F', maxW: 320 });
+  }
+}
+
+// Counter, a utensil rail, and the oven peeking in at the right.
+function bakeKitchen(g, s) {
+  g.beginPath(); g.moveTo(14, 124); g.lineTo(346, 124); Art.ink(g, 6);
+  const tools = [[36, 'spoon'], [66, 'ladle'], [296, 'spat'], [326, 'spoon']];
+  for (const [x, k] of tools) {
+    const sw = Math.sin(s.t * 3 + x) * 0.06 + s.shake * 0.01 * Math.sin(s.t * 40 + x);
+    g.save(); g.translate(x, 124); g.rotate(sw);
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 64); g.lineWidth = 9; g.strokeStyle = INK; g.stroke(); g.lineWidth = 4; g.strokeStyle = '#FFF8E8'; g.stroke();
+    if (k === 'spoon') { g.beginPath(); g.ellipse(0, 78, 10, 15, 0, 0, TAU); Art.fillInk(g, '#FFF8E8', 4); }
+    else if (k === 'ladle') { g.beginPath(); g.arc(0, 74, 14, 0, Math.PI); g.closePath(); Art.fillInk(g, '#FFF8E8', 4); }
+    else { Art.rr(g, -12, 62, 24, 28, 5); Art.fillInk(g, '#FFF8E8', 4); }
+    g.restore();
+  }
+  // counter
+  g.fillStyle = '#E3B47A'; g.fillRect(VIEW.x0 - 20, 500, VIEW.x1 - VIEW.x0 + 40, VIEW.y1 - 500 + 20);
+  g.fillStyle = '#C98F55'; for (let x = Math.floor(VIEW.x0 / 60) * 60; x < VIEW.x1; x += 60) g.fillRect(x, 512, 34, 4);
+  g.beginPath(); g.moveTo(VIEW.x0 - 20, 500); g.lineTo(VIEW.x1 + 20, 500); Art.ink(g, 6);
+}
+
+function bakeBowlBody(g, rx, depth, col) {
+  g.beginPath(); g.ellipse(0, 0, rx, rx * 0.25, 0, 0, Math.PI);
+  g.bezierCurveTo(-rx, depth * 0.8, -rx * 0.5, depth, 0, depth);
+  g.bezierCurveTo(rx * 0.5, depth, rx, depth * 0.8, rx, 0);
+  g.closePath();
+  Art.fillInk(g, col, 6);
+}
+
+function bakeWhisk(g, s) {
+  const { x, y } = BAKE_BOWL, p = s.prog, t = s.t, rx = 128, ry = 32, lost = s.status === 'lost';
+  const bob = s.modes[0] === 'sensor' ? Math.sin(t * 46) * Math.min(10, s.jig) : 0;
+  g.save(); g.translate(x + bob * 0.6, y);
+  // shadow + foot
+  g.beginPath(); g.ellipse(0, 136, 90, 12, 0, 0, TAU); g.fillStyle = 'rgba(27,21,48,.18)'; g.fill();
+  Art.rr(g, -46, 112, 92, 22, 8); Art.fillInk(g, '#FFF8E8', 5);
+  // rim and batter
+  g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); Art.fillInk(g, '#2F8BD8', 6);
+  g.save(); g.beginPath(); g.ellipse(0, 0, rx - 8, ry - 5, 0, 0, TAU); g.clip();
+  const batter = lost ? '#D9C08A' : bakeMix('#EBD3A0', '#FFE07A', p);
+  g.beginPath(); g.ellipse(0, 6, rx - 10, ry - 4, 0, 0, TAU); g.fillStyle = batter; g.fill();
+  // swirl streaks get smoother as it whisks
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 3;
+  for (let i = 0; i < 3; i++) { g.beginPath(); g.ellipse(0, 6, 30 + i * 30, (8 + i * 6), 0, s.swirl * 0.02 + i * 2, s.swirl * 0.02 + i * 2 + 2.2); g.stroke(); }
+  // lumps: flour, yolks, butter, chocolate — they spin round and melt away
+  const lumps = [[50, 0, 'flour'], [80, 1.6, 'yolk'], [35, 3.1, 'butter'], [90, 4.2, 'yolk'], [62, 5.2, 'choc'], [20, 2.2, 'flour']];
+  const k = lost ? 1 : 1 - U.clamp(p * 1.15, 0, 1);
+  for (const [r, a0, kind] of lumps) {
+    if (k <= 0.02) break;
+    const a = a0 + s.swirl * 0.02, lx = Math.cos(a) * r, ly = 6 + Math.sin(a) * r * 0.24;
+    g.save(); g.translate(lx, ly); g.scale(k, k);
+    if (kind === 'yolk') { g.beginPath(); g.ellipse(0, 0, 15, 8, 0, 0, TAU); Art.fillInk(g, '#FFF8E8', 3); g.beginPath(); g.ellipse(0, -1, 8, 5, 0, 0, TAU); Art.fillInk(g, '#FFB21E', 3); }
+    else if (kind === 'flour') { g.beginPath(); g.ellipse(0, -2, 18, 9, 0, 0, TAU); Art.fillInk(g, '#FFFDF6', 3); }
+    else if (kind === 'butter') { Art.rr(g, -10, -9, 20, 14, 3); Art.fillInk(g, '#FFE98A', 3); }
+    else { Art.circle(g, -5, 0, 4); g.fillStyle = '#6B3A1E'; g.fill(); Art.circle(g, 6, -2, 4); g.fill(); }
+    g.restore();
+  }
+  g.restore();
+  // the whisk dips in from above
+  const wx = (s.modes[0] === 'touch' ? s.wx - x : Math.sin(t * 34) * Math.min(42, 8 + s.jig * 3)) + (lost ? 0 : 0);
+  const lean = wx / 320 + (s.modes[0] === 'touch' ? 0 : Math.sin(t * 17) * 0.05);
+  g.save(); g.translate(wx, 10); g.rotate(lean);
+  for (const w of [10, 20, 30]) { g.beginPath(); g.ellipse(0, -6, w * 0.8, 46, 0, 0, TAU); g.lineWidth = 7; g.strokeStyle = INK; g.stroke(); g.lineWidth = 3; g.strokeStyle = '#E6EAF2'; g.stroke(); }
+  Art.rr(g, -9, -190, 18, 140, 8); Art.fillInk(g, '#7A4FD8', 5);
+  Art.rr(g, -6, -178, 5, 100, 3); g.fillStyle = 'rgba(255,255,255,.35)'; g.fill();
+  g.restore();
+  // front of the bowl, with a stripe
+  bakeBowlBody(g, rx, 118, '#3FA3EE');
+  g.save(); bakeBowlBody(g, rx, 118, '#3FA3EE'); g.clip();
+  g.fillStyle = '#FFF8E8'; g.fillRect(-rx, 50, rx * 2, 14); g.fillStyle = '#FFE35A'; for (let i = -5; i <= 5; i++) { Art.circle(g, i * 24, 88, 5); g.fill(); }
+  g.restore();
+  bakeBowlBody(g, rx, 118, 'rgba(0,0,0,0)');
+  // bowl face: worried while lumpy, happy as it fluffs up
+  const happy = lost ? -1 : p * 2 - 1;
+  Art.circle(g, -26, 30, 5); g.fillStyle = INK; g.fill(); Art.circle(g, 26, 30, 5); g.fill();
+  g.beginPath(); g.moveTo(-16, 44); g.quadraticCurveTo(0, 44 + happy * 12, 16, 44); Art.ink(g, 4);
+  g.restore();
+  bakeMeter(g, s.prog, '#FFE35A', 'FLUFF');
+}
+
+function bakeMeter(g, p, col, label) {
+  const x0 = 74, x1 = 286, y = 528;
+  Art.rr(g, x0, y - 11, x1 - x0, 22, 11); g.fillStyle = 'rgba(27,21,48,.35)'; g.fill();
+  if (p > 0.01) { Art.rr(g, x0, y - 11, (x1 - x0) * U.clamp(p, 0, 1), 22, 11); g.fillStyle = col; g.fill(); }
+  Art.rr(g, x0, y - 11, x1 - x0, 22, 11); Art.ink(g, 5);
+  Art.text(g, label, x0 - 6, y, 13, { align: 'right', font: BODY, weight: 900, w: 4, shadow: false });
+}
+
+function bakePour(g, s) {
+  const T = BAKE_TIN, H = T.y1 - T.y0, lost = s.status === 'lost', t = s.t;
+  const surf = T.y1 - H * U.clamp(s.fill, 0, 1);
+  const batter = '#FFE07A';
+  // tin (a glass dish, so you can see the line), with a back rim
+  g.beginPath(); g.ellipse((T.x0 + T.x1) / 2, T.y1 + 6, 82, 10, 0, 0, TAU); g.fillStyle = 'rgba(27,21,48,.2)'; g.fill();
+  g.save();
+  Art.rr(g, T.x0, T.y0, T.x1 - T.x0, H, [4, 4, 18, 18]); g.clip();
+  g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(T.x0, T.y0, T.x1 - T.x0, H);
+  const b0 = T.y1 - H * s.band[1], b1 = T.y1 - H * s.band[0];
+  g.fillStyle = 'rgba(80,220,120,.4)'; g.fillRect(T.x0, b0, T.x1 - T.x0, b1 - b0);
+  g.fillStyle = batter; g.fillRect(T.x0, surf, T.x1 - T.x0, T.y1 - surf);
+  g.fillStyle = '#FFF0B0'; g.fillRect(T.x0, surf, T.x1 - T.x0, 6);
+  g.setLineDash([9, 6]); g.strokeStyle = '#178A45'; g.lineWidth = 3;
+  for (const yy of [b0, b1]) { g.beginPath(); g.moveTo(T.x0, yy); g.lineTo(T.x1, yy); g.stroke(); }
+  g.setLineDash([]);
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(T.x0 + 12, T.y0 + 10, 9, H - 30);
+  g.restore();
+  Art.rr(g, T.x0, T.y0, T.x1 - T.x0, H, [4, 4, 18, 18]); Art.ink(g, 6);
+  Art.rr(g, T.x0 - 8, T.y0 - 8, T.x1 - T.x0 + 16, 12, 6); Art.fillInk(g, '#D6DCE6', 5);
+  // band tabs on the right edge
+  const mid = T.y1 - H * (s.band[0] + s.band[1]) / 2;
+  g.beginPath(); g.moveTo(T.x1 + 8, mid); g.lineTo(T.x1 + 26, mid - 12); g.lineTo(T.x1 + 26, mid + 12); g.closePath(); Art.fillInk(g, '#5BE38A', 4);
+  // bowl, pivoting on its spout
+  const px = 166, py = 252, a = s.ang * Math.PI / 180, flow = s.flow;
+  if (flow > 0.02 || s.q.length) {
+    const fk = Math.max(flow, s.q.length ? 0.15 : 0);
+    const tx = 236 + Math.sin(t * 20) * 3, ty = Math.max(T.y0 + 6, surf);
+    g.beginPath(); g.moveTo(px + 4, py + 4); g.quadraticCurveTo(px + 50 + fk * 30, py + 20, tx, ty);
+    g.lineWidth = 8 + fk * 14; g.strokeStyle = INK; g.lineCap = 'round'; g.stroke();
+    g.lineWidth = 3 + fk * 12; g.strokeStyle = batter; g.stroke();
+  }
+  g.save(); g.translate(px, py); g.rotate(a);
+  g.save(); g.translate(-82, 0); g.rotate(-0.05);
+  g.beginPath(); g.ellipse(0, 0, 82, 21, 0, 0, TAU); Art.fillInk(g, '#2F8BD8', 5);
+  const left = U.clamp(1 - s.fill * 1.05, 0, 1);
+  if (left > 0.03) { g.save(); g.beginPath(); g.ellipse(0, 0, 76, 17, 0, 0, TAU); g.clip(); g.beginPath(); g.ellipse(0, 4, 74 * (0.5 + left * 0.5), 14, 0, 0, TAU); g.fillStyle = batter; g.fill(); g.restore(); }
+  bakeBowlBody(g, 82, 78, '#3FA3EE');
+  g.save(); bakeBowlBody(g, 82, 78, '#3FA3EE'); g.clip(); g.fillStyle = '#FFF8E8'; g.fillRect(-82, 32, 164, 10); g.restore();
+  bakeBowlBody(g, 82, 78, 'rgba(0,0,0,0)');
+  Art.circle(g, -18, 22, 4); g.fillStyle = INK; g.fill(); Art.circle(g, 18, 22, 4); g.fill();
+  g.beginPath(); g.arc(0, 32, 7, 0, Math.PI); Art.ink(g, 3);
+  g.restore();
+  g.restore();
+  // a ghost hand or tilt hint before the first pour
+  if (s.status === 'playing' && s.fill < 0.02 && flow === 0) {
+    const k = (t * 1.4) % 1;
+    g.save(); g.globalAlpha = 0.85 * Math.sin(k * Math.PI);
+    if (s.modes[1] === 'touch') { Art.icon(g, 'touch', 120 + k * 80, 440, 52, t); Art.text(g, '→', 210, 400, 30, { fill: '#FFF8E8' }); }
+    else Art.icon(g, 'tilt', 96, 430, 60, t);
+    g.restore();
+  }
+  // spills
+  if (lost && s.fail === 'spill') {
+    const k = U.clamp(s.after / 0.5, 0, 1);
+    g.fillStyle = batter;
+    for (const sd of [-1, 1]) { const ex = sd < 0 ? T.x0 : T.x1; g.beginPath(); g.moveTo(ex, T.y0); g.quadraticCurveTo(ex + sd * 20, T.y0 + 50, ex + sd * 16, T.y0 + 128 * k); g.lineWidth = 16; g.strokeStyle = INK; g.stroke(); g.lineWidth = 9; g.strokeStyle = batter; g.stroke(); }
+    g.beginPath(); g.ellipse(250, 506, 70 + 70 * k, 9 + 5 * k, 0, 0, TAU); Art.fillInk(g, batter, 4);
+  }
+}
+
+function bakeCool(g, s) {
+  const C = BAKE_CAKE, t = s.t, won = s.status === 'won', lost = s.status === 'lost';
+  const heat = s.heat, k = lost ? U.clamp(s.after / 0.5, 0, 1) : 0;
+  // heat glow
+  if (heat > 0.05 && !won) {
+    const grd = g.createRadialGradient(C.x, 420, 20, C.x, 420, 230);
+    grd.addColorStop(0, `rgba(255,120,60,${0.55 * heat})`); grd.addColorStop(1, 'rgba(255,120,60,0)');
+    g.fillStyle = grd; g.fillRect(VIEW.x0, 150, VIEW.x1 - VIEW.x0, 380);
+  }
+  // cooling rack
+  g.beginPath(); g.ellipse(C.x, 484, 136, 16, 0, 0, TAU); Art.fillInk(g, '#C8CFDA', 5);
+  g.strokeStyle = INK; g.lineWidth = 2.5; for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(C.x + i * 26, 470); g.lineTo(C.x + i * 26, 498); g.stroke(); }
+  for (const lx of [-110, 110]) { g.beginPath(); g.moveTo(C.x + lx, 494); g.lineTo(C.x + lx * 1.05, 506); Art.ink(g, 6); }
+  // the cake: glowing orange-red when hot, golden when cool, burnt and slumped on a FLOP
+  const body = lost ? bakeMix('#E8572A', '#7A3B1E', k) : bakeMix('#D9964A', '#F2542D', heat);
+  const top = lost ? bakeMix('#F07A4A', '#8E4A24', k) : bakeMix('#EDB56A', '#FF7A45', heat);
+  g.save(); g.translate(C.x, C.bot); g.scale(1 + k * 0.18, 1 - k * 0.35); g.translate(-C.x, -C.bot);
+  const wob = s.status === 'playing' ? Math.sin(t * 20) * heat * 2 : 0;
+  g.beginPath(); g.moveTo(C.x - C.rx, C.top); g.lineTo(C.x - C.rx, C.bot); g.ellipse(C.x, C.bot, C.rx, C.ry, 0, Math.PI, 0, true); g.lineTo(C.x + C.rx, C.top); g.closePath();
+  Art.fillInk(g, body, 6);
+  g.beginPath(); g.ellipse(C.x, C.top + wob, C.rx, C.ry, 0, 0, TAU); Art.fillInk(g, top, 6);
+  // frosting + sprinkles + cherry once it's cooled
+  if (won) {
+    const f = U.ease.outBack(U.clamp(s.after / 0.35, 0, 1));
+    g.save(); g.translate(C.x, C.top); g.scale(f, f);
+    g.beginPath(); g.ellipse(0, 0, C.rx + 4, C.ry + 4, 0, Math.PI, 0);
+    for (let i = 0; i <= 8; i++) { const xx = C.rx + 4 - i * ((C.rx + 4) * 2 / 8); g.quadraticCurveTo(xx + 6, 30 + (i % 2) * 18, xx - 6, i === 8 ? 0 : 12); }
+    g.closePath(); Art.fillInk(g, '#FF8FB1', 5);
+    const sc = ['#FFE35A', '#9FF0FF', '#B6F27A', '#FFF8E8'];
+    for (let i = 0; i < 18; i++) { const a = i * 2.4, r = 20 + (i * 13) % 70; g.save(); g.translate(Math.cos(a) * r, Math.sin(a) * r * 0.22 - 2); g.rotate(a); g.fillStyle = sc[i % 4]; g.fillRect(-5, -2, 10, 4); g.restore(); }
+    Art.circle(g, 0, -20, 15); Art.fillInk(g, '#E3243B', 5);
+    g.beginPath(); g.moveTo(0, -34); g.quadraticCurveTo(6, -52, 18, -58); Art.ink(g, 4);
+    g.restore();
+  }
+  // face
+  const fy = C.top + 58;
+  const cool = 1 - heat;
+  if (won || cool > 0.7) {
+    for (const ex of [-34, 34]) { g.beginPath(); g.arc(C.x + ex, fy, 9, Math.PI * 1.1, Math.PI * 1.9); Art.ink(g, 5); }
+    g.beginPath(); g.arc(C.x, fy + 10, 18, 0.15, Math.PI - 0.15); Art.ink(g, 5);
+    g.fillStyle = 'rgba(255,120,150,.6)'; for (const ex of [-56, 56]) { g.beginPath(); g.ellipse(C.x + ex, fy + 14, 11, 6, 0, 0, TAU); g.fill(); }
+  } else if (lost) {
+    for (const ex of [-34, 34]) { g.beginPath(); g.moveTo(C.x + ex - 8, fy - 8); g.lineTo(C.x + ex + 8, fy + 8); g.moveTo(C.x + ex + 8, fy - 8); g.lineTo(C.x + ex - 8, fy + 8); Art.ink(g, 5); }
+    g.beginPath(); g.moveTo(C.x - 16, fy + 22); g.quadraticCurveTo(C.x, fy + 10, C.x + 16, fy + 22); Art.ink(g, 5);
+  } else {
+    for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(C.x + sd * 26, fy - 8); g.lineTo(C.x + sd * 40, fy); g.lineTo(C.x + sd * 26, fy + 8); Art.ink(g, 5); }
+    g.beginPath(); g.ellipse(C.x, fy + 16, 13, 9 + Math.sin(t * 18) * 3, 0, 0, TAU); Art.fillInk(g, '#5A1A12', 4);
+    // sweat drops
+    for (const sd of [-1, 1]) { const dy = (t * 60 + (sd > 0 ? 20 : 0)) % 40; g.beginPath(); g.moveTo(C.x + sd * 66, fy - 14 + dy); g.quadraticCurveTo(C.x + sd * 74, fy + dy, C.x + sd * 66, fy + 4 + dy); g.quadraticCurveTo(C.x + sd * 58, fy + dy, C.x + sd * 66, fy - 14 + dy); Art.fillInk(g, '#BFF4FF', 3); }
+  }
+  g.restore();
+  // steam: wisps that lean away when you blow or fan
+  const n = won ? 0 : Math.ceil(heat * 6), lean = s.blowing;
+  for (let i = 0; i < n; i++) {
+    const x0 = C.x - 70 + i * 28, ph = (t * 0.9 + i * 0.37) % 1;
+    g.save(); g.globalAlpha = (1 - ph) * (lost ? 0.9 : 0.75);
+    g.beginPath();
+    for (let j = 0; j <= 6; j++) { const yy = C.top - 10 - j * 16 - ph * 50, xx = x0 + Math.sin(t * 5 + i + j * 0.9) * 8 - lean * j * 14; j ? g.lineTo(xx, yy) : g.moveTo(xx, yy); }
+    g.lineWidth = 9; g.strokeStyle = lost ? 'rgba(60,50,60,.8)' : 'rgba(255,255,255,.85)'; g.lineCap = 'round'; g.stroke();
+    g.restore();
+  }
+  // wind lines while blowing (sensor) and puffs where you tapped (touch)
+  if (s.blowing > 0.15 && s.modes[2] === 'sensor') {
+    g.save(); g.globalAlpha = s.blowing; g.strokeStyle = '#FFF8E8'; g.lineWidth = 5; g.lineCap = 'round';
+    for (let i = 0; i < 4; i++) { const yy = 250 + i * 34, xo = ((t * 500 + i * 90) % 220); g.beginPath(); g.moveTo(330 - xo, yy); g.lineTo(290 - xo, yy - 4); g.stroke(); }
+    g.restore();
+  }
+  for (const p of s.puffs) { const q = p.t / 0.5; g.save(); g.globalAlpha = 1 - q; Art.circle(g, p.x, p.y, 16 + q * 40); g.lineWidth = 6; g.strokeStyle = '#FFF8E8'; g.stroke(); g.restore(); }
+  // DING! as it comes out of the oven
+  const since = s.beat - s.p0;
+  if (s.status === 'playing' && since < 1.4) { const q = U.ease.outBack(U.clamp(since / 0.25, 0, 1)); Art.text(g, 'DING!', 76, 214, 26, { scale: q, rot: -0.2, fill: '#FFE35A' }); }
+  // a hint before the first cool-down
+  if (s.status === 'playing' && heat > 0.99) {
+    g.save(); g.globalAlpha = 0.6 + 0.4 * Math.sin(t * 8);
+    if (s.modes[2] === 'touch') { Art.circle(g, C.x + 4, C.top + 40, 26); g.fillStyle = '#FFE35A'; g.fill(); Art.ink(g, 4); Art.icon(g, 'touch', C.x + 4, C.top + 42, 34, t); }
+    else { Art.circle(g, 296, 236, 30); g.fillStyle = '#FFE35A'; g.fill(); Art.ink(g, 4); Art.icon(g, 'mic', 296, 238, 40, t); }
+    g.restore();
+  }
+  bakeMeter(g, s.status === 'playing' ? 1 - heat : won ? 1 : 1 - heat, '#9FF0FF', 'COOL');
+}
+
+// Phase dots and the current phase's verb at the top; the verb pops big in the middle as its phase starts.
+function bakeTop(g, s, B) {
+  const t = s.t;
+  for (let i = 0; i < 3; i++) {
+    const x = 150 + i * 30, y = 34, cur = i === s.ph && s.status === 'playing';
+    const done = i < s.ph || (s.status === 'won');
+    const failed = s.status === 'lost' && i === s.ph;
+    const r = cur ? 11 + Math.sin(t * 10) * 1.5 : 9;
+    Art.circle(g, x, y, r); Art.fillInk(g, done ? '#7CF29A' : failed ? '#FF5F5F' : cur ? BAKE_PH[i].accent : 'rgba(255,248,232,.35)', 4);
+  }
+  const a = s.beat - s.bannerAt, ph = Math.min(s.ph, 2), P = BAKE_PH[ph];
+  if (a < 0) return;
+  if (a < 0.95 && s.status === 'playing') {
+    const k = U.ease.outBack(U.clamp(a / 0.22, 0, 1)), out = a > 0.75 ? (a - 0.75) / 0.2 : 0;
+    const y = U.lerp(250, 72, U.ease.inCubic(out)), sc = U.lerp(1, 0.42, out) * k;
+    g.save(); g.translate(180, y); g.rotate(-0.07); g.scale(sc, sc);
+    g.fillStyle = INK; g.fillRect(-200, -40, 400, 84); g.fillStyle = P.accent; g.fillRect(-200, -44, 400, 80);
+    g.restore();
+    Art.text(g, P.verb, 180, y - 4 * sc, 58, { scale: sc, rot: -0.07, fill: '#FFF8E8' });
+  } else Art.text(g, P.verb, 180, 72, 24, { rot: -0.04, fill: P.accent, w: 6 });
+}
+
+/* ---- 7F-g-robot.js ---- */
+// SMASH! (boss) — a clumsy giant robot stomps toward a tiny town. Three phases, each with its own verb:
+//   TAP!    tap its glowing weak spots as they light up, one by one (touch).
+//   DODGE!  its eye laser sweeps the street: tilt to slide the tiny hero out of the red zone (touch: drag the hero).
+//   UNPLUG! drag its power plug out of the socket (touch).
+// DODGE! checks `can.tilt` and falls back to dragging. Run out of time, or get zapped, and the town gets stomped.
+// Win: the robot falls apart into a pile of bolts. Levels add spots and sweeps and shrink the time and targets.
+const ROBOT_TUNE = {
+  tapBy: [7.5, 7, 6.5],     // eased 2026-11-04: Edwin found SMASH! too hard     // TAP! must be done by this beat (counted from the game's start, verb beat included)
+  firstSpot: 0.6,           // beat the first weak spot lights up
+  spots: [3, 3, 4],         // weak spots to tap, per level
+  spotR: [50, 45, 40],      // px tap radius of a weak spot
+  sweeps: [1, 1, 2],        // laser sweeps to survive
+  warn: [2.75, 2.5, 2.25],    // beats the red zone shows before the beam fires
+  sweep: [0.8, 0.7, 0.6],   // beats the beam takes to cross its zone
+  gap: 0.25,                // beats between sweeps
+  zoneW: [120, 135, 150],   // px width of the zone the beam sweeps
+  heroR: 15, beamHalf: 10,  // hit = |hero − beam| < heroR + beamHalf
+  tiltDead: 3, tiltFull: 20, heroSpeed: 620, // tilt: degrees ignored, degrees for full speed, px/s at full speed
+  unplugBeats: [5.5, 5, 4.5], // beats for UNPLUG!
+  pull: [85, 100, 120],    // px the plug must be dragged from the socket
+  plugR: [60, 54, 48],      // px grab radius on the plug
+  intro: 0.35,              // beats at the start of UNPLUG! that ignore a grab while its banner pops
+};
+
+const ROBOT_PH = [
+  { verb: 'TAP!', bg: '#F2B880', dot: '#E8A86C', far: '#D9946A', accent: '#FFF35C' },
+  { verb: 'DODGE!', bg: '#2D3142', dot: '#363B50', far: '#23263A', accent: '#FF5468' },
+  { verb: 'UNPLUG!', bg: '#A3B18A', dot: '#95A47C', far: '#8A9A72', accent: '#FFE45E' },
+];
+// Robot geometry: local coords, feet at (0,0), drawn at ROBOT_AT scaled by ROBOT_AT.s.
+const ROBOT_AT = { x: 180, y: 478, s: 0.82 };
+const ROBOT_SPOTS = [[0, -215], [-96, -262], [96, -262], [-40, -64], [40, -64], [0, -418], [0, -150], [-122, -150], [122, -150]];
+const ROBOT_GROUND = 506; // the town's baseline; the road runs in front of it
+const ROBOT_STREET = 536; // where the hero runs and the laser lands
+const ROBOT_SOCKET = { x: 64, y: 404 }; // the socket face on the power box; the plug sits just right of it
+const ROBOT_PLUG = { x: 98, y: 404 };
+
+function robotWorld(s, lx, ly) {
+  return { x: ROBOT_AT.x + s.sway + lx * ROBOT_AT.s, y: ROBOT_AT.y + ly * ROBOT_AT.s };
+}
+
+Games.add({
+  id: 'robot', verb: 'SMASH!', sensor: 'tilt', boss: true, beats: 18, look: '#F2B880',
+  create({ level, rng, bpm, can }) {
+    const L = level - 1, c = can || {};
+    const modes = ['touch', c.tilt ? 'sensor' : 'touch', 'touch'];
+    const order = U.shuffle(ROBOT_SPOTS.map((_, i) => i), rng).slice(0, ROBOT_TUNE.spots[L]);
+    return {
+      status: 'playing', bg: ROBOT_PH[0].bg, t: 0, beat: 0, after: 0, L, modes, rng,
+      ph: 0, p0: 0, dead: ROBOT_TUNE.tapBy[L], bannerAt: 1, fail: null, stale: new Set(),
+      sway: 0, hitT: 9, stomp: 0, lastStomp: -1, shake: 0, words: [], sparks: [], dents: [], pieces: [], bolts: [],
+      // TAP
+      order, spot: 0, spotAt: ROBOT_TUNE.firstSpot, spotR: ROBOT_TUNE.spotR[L],
+      // DODGE
+      hero: 180, hv: 0, drag: null, sweepNo: -1, zone: null, sweepAt: 0, beamX: null, scorch: [],
+      // UNPLUG
+      plug: { x: ROBOT_PLUG.x, y: ROBOT_PLUG.y }, grab: null, need: ROBOT_TUNE.pull[L], plugR: ROBOT_TUNE.plugR[L], out: false,
+
+      spotPos(i) { const [lx, ly] = ROBOT_SPOTS[this.order[i]]; return robotWorld(this, lx, ly); },
+      nextPhase(B, f) {
+        this.ph++; this.p0 = B.beat; this.bannerAt = B.beat; this.bg = ROBOT_PH[this.ph].bg;
+        this.stale = new Set(f.pointers.map((p) => p.id)); this.drag = null; this.grab = null;
+        if (this.ph === 1) this.startSweep(B);
+        else this.dead = Math.min(16, B.beat + ROBOT_TUNE.unplugBeats[L]);
+        Sound.sfx('level'); this.shake = Math.max(this.shake, 5);
+      },
+      startSweep(B) {
+        this.sweepNo++;
+        const W = ROBOT_TUNE.zoneW[L], hx = this.hero;
+        // The zone covers the hero, nudged so the nearer way out points toward the open middle of the street.
+        let sg = hx > 220 ? 1 : hx < 140 ? -1 : (this.rng() < 0.5 ? -1 : 1);
+        const off = sg * (0.12 + this.rng() * 0.2) * W;
+        const cx = U.clamp(hx + off, W / 2 - 40, 400 - W / 2);
+        this.zone = { a: cx - W / 2, b: cx + W / 2, dir: this.rng() < 0.5 ? 1 : -1 };
+        this.sweepAt = B.beat; this.beamX = null;
+        this.dead = Infinity;
+        Sound.sfx('alarm');
+      },
+      resolve(won, why) {
+        this.status = won ? 'won' : 'lost'; this.fail = why || null; this.after = 0;
+        if (won) {
+          Sound.sfx('boom'); Sound.sfx('giggle'); this.shake = 16;
+          const parts = [['head', 0, -340, 124, 84], ['body', 0, -205, 172, 168], ['armL', -108, -205, 30, 116], ['armR', 108, -205, 30, 116], ['legL', -40, -60, 46, 120], ['legR', 40, -60, 46, 120]];
+          for (const [k, lx, ly, w, h] of parts) {
+            const p = robotWorld(this, lx, ly);
+            this.pieces.push({ k, x: p.x, y: p.y, w: w * ROBOT_AT.s, h: h * ROBOT_AT.s, vx: (Math.random() - 0.5) * 160 + lx * 0.6, vy: -150 - Math.random() * 250, r: 0, vr: (Math.random() - 0.5) * 8 });
+          }
+          for (let i = 0; i < 34; i++) this.bolts.push({ x: 180 + (Math.random() - 0.5) * 120, y: 300 + Math.random() * 120, vx: (Math.random() - 0.5) * 600, vy: -200 - Math.random() * 500, r: Math.random() * TAU, vr: (Math.random() - 0.5) * 20, s: 5 + Math.random() * 5 });
+        } else { Sound.sfx(why === 'zap' ? 'swat' : 'boom'); Sound.sfx('lose'); this.shake = 14; }
+      },
+      word(s, x, y, col) { this.words.push({ s, x, y, col, t: 0 }); },
+
+      update(dt, f, B) {
+        this.t += dt; this.beat = B.beat;
+        this.shake *= Math.pow(0.004, dt); this.hitT += dt;
+        for (const w of this.words) w.t += dt;
+        this.words = this.words.filter((w) => w.t < 0.8);
+        for (const k of this.sparks) { k.t += dt; k.x += k.vx * dt; k.y += k.vy * dt; k.vy += 900 * dt; }
+        this.sparks = this.sparks.filter((k) => k.t < 0.5);
+        for (const p of this.pieces) {
+          p.vy += 1500 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt;
+          const floor = ROBOT_STREET + 4 - Math.min(p.w, p.h) / 2;
+          if (p.y > floor) { p.y = floor; p.vy *= -0.3; p.vx *= 0.5; p.vr *= 0.4; }
+          if (p.x < 50 || p.x > 310) { p.x = U.clamp(p.x, 50, 310); p.vx *= -0.4; }
+        }
+        for (const b of this.bolts) {
+          b.vy += 1400 * dt; b.x += b.vx * dt; b.y += b.vy * dt; b.r += b.vr * dt;
+          if (b.y > ROBOT_STREET + 6) { b.y = ROBOT_STREET + 6; b.vy *= -0.35; b.vx *= 0.6; b.vr *= 0.5; }
+        }
+        if (this.status === 'lost' && this.fail !== 'zap') this.stomp = Math.min(1, this.stomp + dt * 4);
+        if (this.status !== 'playing') { this.after += dt; return; }
+        // The robot lumbers: a sway, and a stomp (with a little screen shake) on every other beat.
+        this.sway = Math.sin(B.beat * Math.PI / 2) * 8;
+        const bi = Math.floor(B.beat);
+        if (bi !== this.lastStomp && bi % 2 === 0 && this.ph !== 1) { this.lastStomp = bi; this.shake = Math.max(this.shake, 3); }
+
+        if (this.ph === 0) {
+          if (B.beat >= this.spotAt) for (const tp of f.taps) {
+            const p = this.spotPos(this.spot);
+            if (U.dist(tp.x, tp.y, p.x, p.y) < this.spotR) {
+              this.dents.push(this.order[this.spot]);
+              this.word(['CLANK!', 'BONK!', 'POW!', 'DONK!', 'BOING!'][this.spot % 5], p.x, p.y - 30, '#FFF35C');
+              for (let i = 0; i < 10; i++) this.sparks.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 500, vy: -100 - Math.random() * 300, t: 0 });
+              this.hitT = 0; this.shake = 10; Sound.sfx('swat');
+              this.spot++; this.spotAt = B.beat;
+              if (this.spot >= this.order.length) { this.nextPhase(B, f); return; }
+              break;
+            }
+          }
+          if (B.beat >= this.dead) this.resolve(false, 'stomp');
+        } else if (this.ph === 1) {
+          // Hero control: tilt (speed ∝ tilt past a small dead zone) or drag anywhere.
+          const R = ROBOT_TUNE, lo = 22, hi = 338;
+          if (modes[1] === 'sensor') {
+            const tx = f.tilt.x, m = U.clamp((Math.abs(tx) - R.tiltDead) / (R.tiltFull - R.tiltDead), 0, 1);
+            this.hv = Math.sign(tx) * m * R.heroSpeed;
+            this.hero = U.clamp(this.hero + this.hv * dt, lo, hi);
+          } else {
+            let p = this.drag ? f.pointers.find((q) => q.id === this.drag.id) : null;
+            if (!p) { this.drag = null; const n = f.pointers.find((q) => !this.stale.has(q.id)); if (n) { this.drag = { id: n.id, sx: n.x, hx: this.hero }; p = n; } }
+            const prev = this.hero;
+            if (p) this.hero = U.clamp(this.drag.hx + (p.x - this.drag.sx), lo, hi);
+            this.hv = (this.hero - prev) / Math.max(dt, 1e-3);
+          }
+          const z = this.zone, w = R.warn[L], sw = R.sweep[L], since = B.beat - this.sweepAt;
+          if (since >= w && since < w + sw) {
+            if (this.beamX == null) { Sound.sfx('fizz'); }
+            const k = (since - w) / sw;
+            this.beamX = z.dir > 0 ? U.lerp(z.a, z.b, k) : U.lerp(z.b, z.a, k);
+            this.shake = Math.max(this.shake, 4);
+            if (Math.random() < dt * 30) this.scorch.push({ x: this.beamX + (Math.random() - 0.5) * 10, t: this.t });
+            if (Math.random() < dt * 12) Sound.sfx('fizz');
+            if (Math.abs(this.hero - this.beamX) < R.heroR + R.beamHalf) { this.resolve(false, 'zap'); return; }
+          } else if (since >= w + sw) {
+            if (this.beamX != null) { this.beamX = null; this.word('PHEW!', U.clamp(this.hero, 60, 300), 470, '#FFF35C'); }
+            if (this.sweepNo + 1 < R.sweeps[L]) { if (since >= w + sw + R.gap) this.startSweep(B); }
+            else this.nextPhase(B, f);
+          }
+        } else {
+          const live = B.beat - this.p0 >= ROBOT_TUNE.intro;
+          let p = this.grab ? f.pointers.find((q) => q.id === this.grab.id) : null;
+          if (!p && this.grab) { this.grab = null; Sound.sfx('blink'); } // let go too early: it springs back in
+          if (!p && live) {
+            const n = f.pointers.find((q) => !this.stale.has(q.id) && U.dist(q.x, q.y, this.plug.x + 14, this.plug.y) < this.plugR);
+            if (n) { this.grab = { id: n.id, ox: n.x - this.plug.x, oy: n.y - this.plug.y }; p = n; Sound.sfx('tick'); }
+          }
+          if (p) { this.plug.x = U.clamp(p.x - this.grab.ox, 80, 340); this.plug.y = U.clamp(p.y - this.grab.oy, 130, 540); }
+          else { this.plug.x = U.lerp(this.plug.x, ROBOT_PLUG.x, Math.min(1, dt * 18)); this.plug.y = U.lerp(this.plug.y, ROBOT_PLUG.y, Math.min(1, dt * 18)); }
+          const pull = U.dist(this.plug.x, this.plug.y, ROBOT_PLUG.x, ROBOT_PLUG.y);
+          if (pull > 6 && Math.random() < dt * 20) this.sparks.push({ x: ROBOT_SOCKET.x + 8, y: ROBOT_SOCKET.y, vx: 80 + Math.random() * 200, vy: -100 - Math.random() * 200, t: 0 });
+          if (pull >= this.need) { this.out = true; Sound.sfx('pop'); this.word('POP!', ROBOT_SOCKET.x + 40, ROBOT_SOCKET.y - 50, '#FFF35C'); this.resolve(true); return; }
+          if (B.beat >= this.dead) this.resolve(false, 'stomp');
+        }
+      },
+      timeout() { if (this.status === 'playing') this.resolve(false, 'stomp'); return 'lost'; },
+      draw(g, B) { robotDraw(g, this, B); },
+    };
+  },
+  bot(inst, B, ctx) {
+    const s = ctx.state;
+    if (inst.status !== 'playing') return {};
+    if (s.ph !== inst.ph) { s.ph = inst.ph; s.t0 = B.t; s.lastT = B.t; s.p = null; s.sweep = -1; }
+    const dt = B.t - s.lastT; s.lastT = B.t;
+    if (inst.ph === 0) {
+      // Tap each weak spot a moment after it lights up.
+      if (B.beat < inst.spotAt) return {};
+      if (s.spot !== inst.spot) { s.spot = inst.spot; s.seen = B.t; }
+      if (B.t - s.seen < (inst.spot === 0 ? ctx.delay : 0.2)) return {};
+      s.seen = B.t + 99;
+      const p = inst.spotPos(inst.spot);
+      return { taps: [{ id: 60 + inst.spot, x: p.x + (ctx.rng() - 0.5) * inst.spotR * 0.6, y: p.y + (ctx.rng() - 0.5) * inst.spotR * 0.6 }] };
+    }
+    if (inst.ph === 1) {
+      if (s.sweep !== inst.sweepNo) { s.sweep = inst.sweepNo; s.seen = B.t; s.target = null; }
+      const touch = inst.modes[1] === 'touch';
+      if (touch && s.p == null) s.p = { x: inst.hero, y: 470 };
+      const hold = touch ? { pointers: [{ id: 70, x: s.p.x, y: s.p.y }] } : { tilt: { x: 0, y: 0 } };
+      if (B.t - s.seen < ctx.delay || !inst.zone) return hold;
+      if (s.target == null) {
+        const m = ROBOT_TUNE.heroR + ROBOT_TUNE.beamHalf + 14, z = inst.zone;
+        const opts = [z.a - m, z.b + m].filter((x) => x >= 26 && x <= 334);
+        s.target = opts.sort((a, b) => Math.abs(a - inst.hero) - Math.abs(b - inst.hero))[0];
+      }
+      const err = s.target - inst.hero;
+      if (!touch) return { tilt: { x: U.clamp(err * 0.6, -25, 25), y: 0 } };
+      s.p.x += U.clamp(err, -2000 * dt, 2000 * dt);
+      return { pointers: [{ id: 70, x: s.p.x, y: s.p.y }] };
+    }
+    // UNPLUG: grab the plug, drag it up and away from the socket.
+    if (B.t - s.t0 < Math.max(ctx.delay, ROBOT_TUNE.intro * B.spb + 0.02)) return { pointers: [] };
+    if (s.p == null) { s.p = { x: inst.plug.x + 14, y: inst.plug.y }; s.tx = s.p.x + (inst.need + 30) * 0.8; s.ty = s.p.y - (inst.need + 30) * 0.6; }
+    else {
+      const dx = s.tx - s.p.x, dy = s.ty - s.p.y, d = Math.hypot(dx, dy), st = Math.min(d, 2000 * dt);
+      if (d > 0) { s.p.x += (dx / d) * st; s.p.y += (dy / d) * st; }
+    }
+    return { pointers: [{ id: 80, x: s.p.x, y: s.p.y }] };
+  },
+});
+
+// ---------- drawing ----------
+function robotDraw(g, s, B) {
+  const ph = Math.min(s.ph, 2), P = ROBOT_PH[ph], t = s.t, won = s.status === 'won', lost = s.status === 'lost';
+  fillView(g, P.bg);
+  g.save(); g.globalAlpha = 0.5; Art.dots(g, P.dot, 22, 2.8); g.restore();
+  // sky: a low sun at dusk, stars and a moon at night, a sun again at dawn
+  if (ph === 1) {
+    for (let i = 0; i < 16; i++) { g.save(); g.globalAlpha = 0.35 + 0.3 * Math.sin(t * 3 + i); Art.text(g, '✦', (i * 71) % 350 + 5, 110 + ((i * 113) % 220), 11, { fill: '#FFF8E8', w: 0, shadow: false }); g.restore(); }
+    Art.circle(g, 300, 150, 26); Art.fillInk(g, '#FFF3C4', 5); Art.circle(g, 312, 142, 22); g.fillStyle = P.bg; g.fill();
+  } else { Art.circle(g, ph === 0 ? 70 : 290, 200, 46); Art.fillInk(g, ph === 0 ? '#FFDA6B' : '#FFF3C4', 5); }
+  // far skyline
+  g.fillStyle = P.far;
+  const bld = [[-40, 120], [0, 90], [34, 150], [80, 110], [130, 170], [190, 120], [236, 160], [284, 100], [320, 140], [360, 110], [400, 130]];
+  for (const [x, h] of bld) g.fillRect(x, ROBOT_GROUND - 60 - h, 44, h + 60);
+  g.save();
+  g.translate((Math.random() - 0.5) * s.shake, (Math.random() - 0.5) * s.shake);
+  if (!won) robotBody(g, s);
+  if (ph === 2 || (won && s.ph === 2)) robotCable(g, s);
+  robotTown(g, s);
+  if (won) robotPile(g, s);
+  if (lost && s.fail !== 'zap') robotStompFoot(g, s);
+  if (ph === 1) robotDodge(g, s);
+  if (ph === 0 && s.status === 'playing') robotSpots(g, s);
+  for (const k of s.sparks) { g.save(); g.globalAlpha = 1 - k.t / 0.5; Art.text(g, '✦', k.x, k.y, 16, { fill: '#FFF35C', w: 3, shadow: false }); g.restore(); }
+  for (const w of s.words) {
+    const k = U.ease.outBack(U.clamp(w.t / 0.2, 0, 1));
+    g.save(); g.globalAlpha = U.clamp((0.8 - w.t) / 0.3, 0, 1); Art.text(g, w.s, w.x, w.y - w.t * 50, 28, { scale: k, rot: -0.1, fill: w.col }); g.restore();
+  }
+  g.restore();
+  robotTop(g, s);
+  if (won || lost) {
+    const q = U.ease.outBack(U.clamp(s.after / 0.35, 0, 1));
+    const msg = won ? 'KAPUT!' : s.fail === 'zap' ? 'ZAPPED!' : 'STOMP!';
+    Art.text(g, msg, 180, 120, 52, { scale: q * (won ? 1 + 0.05 * Math.sin(t * 14) : 1), rot: won ? -0.08 : 0.06, fill: won ? '#FFF35C' : '#FF5468' });
+  }
+}
+
+function robotBody(g, s) {
+  const t = s.t, ph = s.ph, lost = s.status === 'lost', flinch = Math.max(0, 1 - s.hitT / 0.3);
+  const laser = ph === 1 && s.status === 'playing';
+  const panic = ph === 2 && s.status === 'playing';
+  g.save(); g.translate(ROBOT_AT.x + s.sway, ROBOT_AT.y); g.scale(ROBOT_AT.s, ROBOT_AT.s);
+  g.rotate(Math.sin(t * 40) * 0.04 * flinch + s.sway * 0.004);
+  const metal = '#8FA3B8', light = '#C3D0DD', dark = '#55657A';
+  // legs (on a STOMP, one foot comes down on the town)
+  const stomp = lost && s.fail !== 'zap' ? U.ease.outCubic(s.stomp) : 0;
+  const lift = Math.max(0, Math.sin(s.beat * Math.PI)) * 10;
+  for (const sd of [-1, 1]) {
+    const up = sd < 0 ? lift : 0;
+    Art.rr(g, sd * 40 - 22, -122 - up, 44, 122, 10); Art.fillInk(g, metal, 6);
+    Art.circle(g, sd * 40, -64 - up, 14); Art.fillInk(g, dark, 5);
+    Art.rr(g, sd * 40 - 36 + (sd > 0 ? stomp * 30 : 0), -20 - up + (sd > 0 ? stomp * 30 : 0), 72, 26, 8); Art.fillInk(g, dark, 6);
+  }
+  // arms swing; flail in a panic once you go for the plug
+  for (const sd of [-1, 1]) {
+    const sw = panic ? Math.sin(t * 18 + sd) * 0.6 : laser ? -0.3 * sd : Math.sin(s.beat * Math.PI / 2 + (sd > 0 ? Math.PI : 0)) * 0.25;
+    g.save(); g.translate(sd * 96, -262); g.rotate(sw * sd);
+    Art.rr(g, -15, 0, 30, 116, 12); Art.fillInk(g, metal, 6);
+    Art.circle(g, 0, 0, 16); Art.fillInk(g, dark, 5);
+    g.beginPath(); g.moveTo(-18, 116); g.lineTo(-24, 142); g.moveTo(18, 116); g.lineTo(24, 142); g.lineWidth = 12; g.strokeStyle = INK; g.stroke(); g.lineWidth = 6; g.strokeStyle = light; g.stroke();
+    g.restore();
+  }
+  // torso with a chest panel and rivets
+  Art.rr(g, -86, -292, 172, 172, 22); Art.fillInk(g, metal, 6);
+  Art.rr(g, -60, -268, 120, 84, 12); Art.fillInk(g, light, 5);
+  const glow = laser ? '#FF5468' : '#7CF2E0';
+  for (let i = 0; i < 3; i++) { Art.rr(g, -46 + i * 34, -250, 24, 18, 4); g.fillStyle = (Math.floor(t * 6) + i) % 3 ? INK : glow; g.fill(); }
+  g.fillStyle = dark; for (const [x, y] of [[-72, -278], [72, -278], [-72, -134], [72, -134]]) { Art.circle(g, x, y, 5); g.fill(); }
+  g.beginPath(); g.moveTo(-40, -166); g.lineTo(40, -166); g.moveTo(-40, -146); g.lineTo(40, -146); Art.ink(g, 4);
+  // dents where it's been bonked
+  for (const i of s.dents) { const [x, y] = ROBOT_SPOTS[i]; g.save(); g.translate(x, y); g.rotate(0.6); Art.rr(g, -16, -5, 32, 10, 3); Art.fillInk(g, '#FFF8E8', 3); g.rotate(-1.2); Art.rr(g, -16, -5, 32, 10, 3); Art.fillInk(g, '#FFF8E8', 3); g.restore(); }
+  // head: tilts toward the laser target
+  const look = laser && s.zone ? U.clamp(((s.beamX != null ? s.beamX : (s.zone.a + s.zone.b) / 2) - 180) / 600, -0.25, 0.25) : 0;
+  g.save(); g.translate(0, -296); g.rotate(look + Math.sin(t * 50) * 0.08 * flinch);
+  g.beginPath(); g.moveTo(0, -84); g.lineTo(0, -116); Art.ink(g, 6);
+  Art.circle(g, 0, -122, 14); Art.fillInk(g, laser ? '#FF5468' : '#FFF35C', 5);
+  Art.rr(g, -64, -88, 128, 84, 18); Art.fillInk(g, metal, 6);
+  Art.rr(g, -88, -60, 26, 34, 8); Art.fillInk(g, dark, 5); Art.rr(g, 62, -60, 26, 34, 8); Art.fillInk(g, dark, 5);
+  // googly eyes (mismatched, the clumsy look); red and squinting when charging the laser
+  for (const [ex, er] of [[-26, 20], [28, 15]]) {
+    Art.circle(g, ex, -50, er); Art.fillInk(g, laser ? '#FFD0D6' : '#FFF8E8', 5);
+    const wob = flinch > 0 ? t * 30 : t * 2 + ex;
+    const pr = laser ? er * 0.55 : er * 0.45;
+    Art.circle(g, ex + Math.cos(wob) * er * 0.35, -50 + Math.sin(wob) * er * 0.35 + (laser ? 4 : 0), pr); g.fillStyle = laser ? '#E3243B' : INK; g.fill();
+    if (laser) { g.beginPath(); g.moveTo(ex - er - 2, -50 - er * 0.5); g.lineTo(ex + er + 2, -50 - er * 0.1); Art.ink(g, 6); }
+  }
+  // mouth grille: gapes in a panic
+  Art.rr(g, -34, -24, 68, panic ? 18 : 12, 4); Art.fillInk(g, panic ? '#3A1A22' : dark, 4);
+  g.restore();
+  g.restore();
+}
+
+function robotSpots(g, s) {
+  if (s.beat < s.spotAt) return;
+  const p = s.spotPos(s.spot), t = s.t, k = U.ease.outBack(U.clamp((s.beat - s.spotAt) / 0.25, 0, 1));
+  const r = s.spotR * 0.62 * k;
+  g.save(); g.globalAlpha = 0.35 + 0.25 * Math.sin(t * 14); Art.circle(g, p.x, p.y, r * 1.9); g.fillStyle = '#FFF35C'; g.fill(); g.restore();
+  Art.circle(g, p.x, p.y, r); Art.fillInk(g, '#FFF35C', 5);
+  Art.circle(g, p.x, p.y, r * 0.45); g.fillStyle = '#FF3EA5'; g.fill();
+  g.save(); g.translate(p.x, p.y); g.rotate(t * 3); g.setLineDash([8, 7]); Art.circle(g, 0, 0, s.spotR * k); g.lineWidth = 4; g.strokeStyle = '#FF3EA5'; g.stroke(); g.restore();
+  // how many are left
+  Art.text(g, `${s.order.length - s.spot}`, p.x + r + 12, p.y - r - 6, 18, { fill: '#FFF35C' });
+}
+
+function robotTown(g, s) {
+  const stomp = s.status === 'lost' && s.fail !== 'zap' ? U.ease.outCubic(s.stomp) : 0;
+  g.fillStyle = '#6B5B73'; g.fillRect(VIEW.x0 - 20, ROBOT_GROUND, VIEW.x1 - VIEW.x0 + 40, VIEW.y1 - ROBOT_GROUND + 20);
+  g.beginPath(); g.moveTo(VIEW.x0 - 20, ROBOT_GROUND); g.lineTo(VIEW.x1 + 20, ROBOT_GROUND); Art.ink(g, 6);
+  g.fillStyle = '#FFF8E8'; for (let x = Math.floor(VIEW.x0 / 50) * 50; x < VIEW.x1; x += 50) g.fillRect(x, ROBOT_STREET + 22, 26, 5);
+  const houses = [[14, 40, '#FF9A8B'], [62, 52, '#7FD8E8'], [110, 36, '#FFE45E'], [150, 46, '#C7A6FF'], [200, 40, '#8EE59B'], [244, 56, '#FF9A8B'], [292, 42, '#FFD08A']];
+  const night = s.ph === 1 && s.status !== 'won';
+  houses.forEach(([x, h, c], i) => {
+    const sq = stomp && x > 150 && x < 270 ? 1 - stomp * 0.75 : 1;
+    const hh = h * sq, y = ROBOT_GROUND - hh, w = 40;
+    Art.rr(g, x, y, w, hh, 3); Art.fillInk(g, c, 4);
+    g.beginPath(); g.moveTo(x - 4, y); g.lineTo(x + w / 2, y - 18 * sq); g.lineTo(x + w + 4, y); g.closePath(); Art.fillInk(g, '#C2465A', 4);
+    if (hh > 20) { Art.rr(g, x + 10, y + 8, 10, 10, 2); g.fillStyle = night && (i % 3) ? '#FFE45E' : INK; g.fill(); Art.rr(g, x + 24, y + hh - 20, 10, 20, 2); g.fillStyle = INK; g.fill(); }
+  });
+}
+
+function robotHero(g, x, y, s) {
+  const zapped = s.status === 'lost' && s.fail === 'zap', t = s.t, run = Math.abs(s.hv) > 30;
+  const lean = U.clamp(s.hv / 2000, -0.35, 0.35);
+  g.beginPath(); g.ellipse(x, y + 2, 20, 6, 0, 0, TAU); g.fillStyle = zapped ? INK : '#FFF35C'; g.fill(); Art.ink(g, 3);
+  g.save(); g.translate(x, y); g.scale(1.4, 1.4); g.rotate(lean);
+  // cape flaps behind
+  const cd = s.hv >= 0 ? -1 : 1;
+  g.beginPath(); g.moveTo(-6, -22); g.lineTo(6, -22); g.lineTo(cd * (14 + (run ? 6 : 0) + Math.sin(t * 20) * 3), -2); g.closePath(); Art.fillInk(g, zapped ? '#444' : '#FF3EA5', 3);
+  for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(sd * 4, -6); g.lineTo(sd * 5 + (run ? Math.sin(t * 24 + sd) * 5 : 0), 6); Art.ink(g, 5); }
+  Art.rr(g, -8, -24, 16, 20, 5); Art.fillInk(g, zapped ? '#333' : '#3B6CFF', 4);
+  Art.circle(g, 0, -32, 9); Art.fillInk(g, zapped ? '#333' : '#FFD9B0', 4);
+  if (zapped) { g.strokeStyle = INK; g.lineWidth = 3; for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(i * 4, -40); g.lineTo(i * 6, -50); g.stroke(); } }
+  else { Art.circle(g, -3, -33, 1.8); g.fillStyle = INK; g.fill(); Art.circle(g, 3, -33, 1.8); g.fill(); }
+  g.restore();
+}
+
+function robotDodge(g, s) {
+  const R = ROBOT_TUNE, z = s.zone, t = s.t, y = ROBOT_STREET;
+  for (const sc of s.scorch) { g.save(); g.globalAlpha = 0.6; g.beginPath(); g.ellipse(sc.x, y + 4, 12, 4, 0, 0, TAU); g.fillStyle = INK; g.fill(); g.restore(); }
+  const eye = robotWorld(s, -1, -346);
+  if (z && s.status === 'playing') {
+    const since = s.beat - s.sweepAt, w = R.warn[s.L];
+    if (since < w) {
+      // warning: a flashing hazard strip on the street and a charging eye
+      const k = since / w, fl = 0.35 + 0.35 * Math.abs(Math.sin(t * (10 + k * 14)));
+      g.save(); g.globalAlpha = fl;
+      g.beginPath(); g.moveTo(eye.x, eye.y); g.lineTo(z.a, y); g.lineTo(z.b, y); g.closePath(); g.fillStyle = 'rgba(255,84,104,.25)'; g.fill();
+      g.restore();
+      g.save(); Art.rr(g, z.a, y - 6, z.b - z.a, 22, 6); g.clip();
+      g.fillStyle = '#FF5468'; g.fillRect(z.a, y - 6, z.b - z.a, 22);
+      g.fillStyle = INK; for (let x = z.a - 30 + ((t * 60) % 24); x < z.b + 30; x += 24) { g.beginPath(); g.moveTo(x, y - 6); g.lineTo(x + 12, y - 6); g.lineTo(x - 2, y + 16); g.lineTo(x - 14, y + 16); g.closePath(); g.fill(); }
+      g.restore();
+      Art.rr(g, z.a, y - 6, z.b - z.a, 22, 6); Art.ink(g, 4);
+      Art.circle(g, eye.x, eye.y, 8 + k * 16 + Math.sin(t * 40) * 2); g.fillStyle = 'rgba(255,84,104,.8)'; g.fill();
+      // which way is out
+      if (k < 0.85) for (const [x, ch] of [[z.a - 22, '◀'], [z.b + 22, '▶']]) if (x > 12 && x < 348) { g.save(); g.globalAlpha = 0.6 + 0.4 * Math.sin(t * 12); Art.text(g, ch, x, y - 30, 20, { fill: '#FFF35C', w: 4 }); g.restore(); }
+    }
+  }
+  robotHero(g, s.hero, y - 2, s);
+  if (s.beamX != null || (s.status === 'lost' && s.fail === 'zap' && s.after < 0.5)) {
+    const bx = s.beamX != null ? s.beamX : s.hero;
+    g.beginPath(); g.moveTo(eye.x, eye.y); g.lineTo(bx, y + 4);
+    g.lineWidth = R.beamHalf * 2 + 12; g.strokeStyle = INK; g.lineCap = 'round'; g.stroke();
+    g.lineWidth = R.beamHalf * 2 + 4; g.strokeStyle = '#FF5468'; g.stroke();
+    g.lineWidth = 6; g.strokeStyle = '#FFF8E8'; g.stroke();
+    Art.circle(g, bx, y + 2, 22 + Math.sin(t * 50) * 4); Art.fillInk(g, '#FFE45E', 4);
+    Art.circle(g, eye.x, eye.y, 16); Art.fillInk(g, '#FFF8E8', 4);
+  }
+  // controls hint while the first warning is up
+  if (s.status === 'playing' && s.sweepNo === 0 && Math.abs(s.hero - 180) < 4) {
+    g.save(); g.globalAlpha = 0.6 + 0.4 * Math.sin(t * 8);
+    Art.circle(g, 180, 440, 26); g.fillStyle = '#FFF35C'; g.fill(); Art.ink(g, 4);
+    Art.icon(g, s.modes[1] === 'sensor' ? 'tilt' : 'touch', 180, 442, 36, t);
+    g.restore();
+  }
+}
+
+function robotCable(g, s) {
+  const p = s.plug, t = s.t, foot = robotWorld(s, -50, -10);
+  const out = s.out;
+  // cable from the robot's heel to the plug, with current crawling along it while it's live
+  g.beginPath(); g.moveTo(foot.x, foot.y); g.bezierCurveTo(foot.x - 30, ROBOT_GROUND + 10, p.x + 80, p.y + 60, p.x + 26, p.y);
+  g.lineWidth = 14; g.strokeStyle = INK; g.lineCap = 'round'; g.stroke(); g.lineWidth = 7; g.strokeStyle = '#3A3A48'; g.stroke();
+  if (!out) { g.setLineDash([6, 16]); g.lineDashOffset = -t * 120; g.lineWidth = 4; g.strokeStyle = '#FFE45E'; g.stroke(); g.setLineDash([]); g.lineDashOffset = 0; }
+  // power box with the socket
+  const S = ROBOT_SOCKET;
+  Art.rr(g, S.x - 50, S.y - 60, 56, 120, 8); Art.fillInk(g, '#FFE45E', 5);
+  g.fillStyle = INK; g.beginPath(); g.moveTo(S.x - 18, S.y - 44); g.lineTo(S.x - 30, S.y - 26); g.lineTo(S.x - 22, S.y - 26); g.lineTo(S.x - 28, S.y - 12); g.lineTo(S.x - 14, S.y - 32); g.lineTo(S.x - 22, S.y - 32); g.closePath(); g.fill();
+  Art.rr(g, S.x - 8, S.y - 16, 14, 32, 4); Art.fillInk(g, '#3A3A48', 4);
+  // the plug (a fat, grabbable one) with its prongs
+  const pulled = U.dist(p.x, p.y, ROBOT_PLUG.x, ROBOT_PLUG.y), ang = Math.atan2(p.y - S.y, p.x - S.x);
+  g.save(); g.translate(p.x, p.y); g.rotate(pulled > 8 ? ang : 0); g.scale(1.3, 1.3);
+  for (const dy of [-8, 8]) { Art.rr(g, -34, dy - 3, 22, 6, 2); Art.fillInk(g, '#E0E4EA', 3); }
+  Art.rr(g, -14, -20, 44, 40, 10); Art.fillInk(g, '#FF5468', 5);
+  g.fillStyle = 'rgba(255,255,255,.4)'; Art.rr(g, -8, -14, 10, 26, 4); g.fill();
+  g.restore();
+  // a tug arrow and a pull meter while it's in
+  if (s.status === 'playing' && s.ph === 2) {
+    const k = U.clamp(pulled / s.need, 0, 1);
+    if (!s.grab) { g.save(); g.globalAlpha = 0.6 + 0.4 * Math.sin(t * 9); Art.text(g, 'GRAB!', p.x + 20, p.y - 52, 26, { fill: '#FFF35C', rot: -0.08 }); Art.text(g, '➜', p.x + 84 + Math.sin(t * 9) * 6, p.y - 34, 34, { rot: -0.6, fill: '#FFF35C' }); g.restore(); }
+    Art.rr(g, 74, 158, 212, 18, 9); g.fillStyle = 'rgba(27,21,48,.35)'; g.fill();
+    if (k > 0.02) { Art.rr(g, 74, 158, 212 * k, 18, 9); g.fillStyle = '#FFE45E'; g.fill(); }
+    Art.rr(g, 74, 158, 212, 18, 9); Art.ink(g, 4);
+  }
+}
+
+// On a STOMP the robot's foot comes down on the houses, in front of everything.
+function robotStompFoot(g, s) {
+  const k = U.ease.outCubic(s.stomp), x = ROBOT_AT.x + 46, fy = U.lerp(300, ROBOT_GROUND - 20, k);
+  Art.rr(g, x - 20, 300, 40, fy - 300 + 6, 10); Art.fillInk(g, '#8FA3B8', 6);
+  Art.rr(g, x - 46, fy, 92, 32, 9); Art.fillInk(g, '#55657A', 6);
+  if (k > 0.9) for (let i = 0; i < 5; i++) { const q = U.clamp(s.after * 2 - 0.25, 0, 1); g.save(); g.globalAlpha = 0.7 * (1 - q); Art.circle(g, x + (i - 2) * 30 * (1 + q), ROBOT_GROUND + 8 - q * 20, 12 + q * 14); g.fillStyle = '#E8E0D6'; g.fill(); g.restore(); }
+}
+
+function robotPile(g, s) {
+  const metal = '#8FA3B8', dark = '#55657A';
+  for (const p of s.pieces) {
+    g.save(); g.translate(p.x, p.y); g.rotate(p.r);
+    Art.rr(g, -p.w / 2, -p.h / 2, p.w, p.h, 8); Art.fillInk(g, p.k === 'head' ? metal : p.k.startsWith('leg') || p.k.startsWith('arm') ? metal : '#9FB2C6', 5);
+    if (p.k === 'head') {
+      for (const ex of [-20, 22]) { g.beginPath(); g.moveTo(ex - 8, -8); g.lineTo(ex + 8, 8); g.moveTo(ex + 8, -8); g.lineTo(ex - 8, 8); Art.ink(g, 5); }
+      g.beginPath(); g.moveTo(0, -p.h / 2); g.quadraticCurveTo(10, -p.h / 2 - 20, 24, -p.h / 2 - 14); Art.ink(g, 4);
+    } else if (p.k === 'body') { Art.rr(g, -p.w * 0.35, -p.h * 0.36, p.w * 0.7, p.h * 0.4, 8); Art.fillInk(g, '#C3D0DD', 4); }
+    else { Art.circle(g, 0, -p.h / 2 + 8, 8); Art.fillInk(g, dark, 3); }
+    g.restore();
+  }
+  for (const b of s.bolts) {
+    g.save(); g.translate(b.x, b.y); g.rotate(b.r);
+    g.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; g.lineTo(Math.cos(a) * b.s, Math.sin(a) * b.s); } g.closePath(); Art.fillInk(g, '#D6DCE6', 3);
+    Art.circle(g, 0, 0, b.s * 0.35); g.fillStyle = INK; g.fill();
+    g.restore();
+  }
+  // smoke from the wreck
+  for (let i = 0; i < 4; i++) { const k = (s.after * 0.8 + i * 0.25) % 1; g.save(); g.globalAlpha = 0.5 * (1 - k); Art.circle(g, 160 + i * 14, ROBOT_STREET - 40 - k * 120, 14 + k * 20); g.fillStyle = '#E8E8EE'; g.fill(); g.restore(); }
+}
+
+function robotTop(g, s) {
+  const t = s.t;
+  for (let i = 0; i < 3; i++) {
+    const x = 150 + i * 30, y = 34, cur = i === s.ph && s.status === 'playing';
+    const done = i < s.ph || s.status === 'won', failed = s.status === 'lost' && i === s.ph;
+    Art.circle(g, x, y, cur ? 11 + Math.sin(t * 10) * 1.5 : 9);
+    Art.fillInk(g, done ? '#7CF29A' : failed ? '#FF5468' : cur ? ROBOT_PH[i].accent : 'rgba(255,248,232,.35)', 4);
+  }
+  const a = s.beat - s.bannerAt, P = ROBOT_PH[Math.min(s.ph, 2)];
+  if (a < 0 || s.status !== 'playing') { if (a >= 0.95) Art.text(g, P.verb, 180, 72, 24, { rot: -0.04, fill: P.accent, w: 6 }); return; }
+  if (a < 0.95) {
+    const k = U.ease.outBack(U.clamp(a / 0.22, 0, 1)), out = a > 0.75 ? (a - 0.75) / 0.2 : 0;
+    const y = U.lerp(250, 72, U.ease.inCubic(out)), sc = U.lerp(1, 0.42, out) * k;
+    g.save(); g.translate(180, y); g.rotate(-0.07); g.scale(sc, sc);
+    g.fillStyle = INK; g.fillRect(-200, -40, 400, 84); g.fillStyle = P.accent; g.fillRect(-200, -44, 400, 80);
+    g.restore();
+    Art.text(g, P.verb, 180, y - 4 * sc, 58, { scale: sc, rot: -0.07, fill: '#FFF8E8' });
+  } else Art.text(g, P.verb, 180, 72, 24, { rot: -0.04, fill: P.accent, w: 6 });
+}
+
 /* ---- 80-ui.js ---- */
-// DOM screens over the canvas: title, permissions, practice, results, pause, sensor check.
+// DOM screens over the canvas: title, permissions, practice, results, pause, sensor check, and the Run's
+// map (drawn by RunMap), shop, rest stop and end-of-run screen.
 // Set FULL_URL once the sensor-enabled copy is hosted (GitHub Pages), so the Artifact can link to it.
 const FULL_URL = 'https://theedwinng.github.io/workshop/jolt/';
 
 const UI = (() => {
   const $ = (id) => document.getElementById(id);
-  const SCREENS = ['title', 'perm', 'practice', 'presult', 'over', 'pause', 'check', 'history'];
-  let practiceLevel = 1, skipResolve = null, lastPractice = null, started = false;
+  const SCREENS = ['title', 'perm', 'practice', 'presult', 'over', 'pause', 'check', 'history', 'map', 'rest', 'runend', 'dailyend', 'partysetup', 'handoff', 'partyend', 'awards'];
+  let practiceLevel = 1, practiceRemix = false, skipResolve = null, lastPractice = null, started = false;
   const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 
   function show(name) { for (const s of SCREENS) $(s).hidden = s !== name; pauseBtn.hidden = !(name === null && (Engine.state === 'game' || Engine.state === 'inter')); }
@@ -4864,7 +6536,7 @@ const UI = (() => {
       .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
     const top = Math.max(1, ...runs.map((r) => r.pts || 0));
     $('hist-runs').innerHTML = runs.length ? runs.slice(0, 12).map((r) =>
-      `<li class="${r.pts === bestPts && bestPts ? 'top' : ''}"><span class="when">${when(r.t)} · ${r.cleared} cleared · level ${r.level}</span><b>${fmt(r.pts)}</b><span class="bar"><i style="width:${Math.round((r.pts / top) * 100)}%"></i></span></li>`).join('')
+      `<li class="${r.pts === bestPts && bestPts ? 'top' : ''}"><span class="when">${when(r.t)} · ${r.mode === 'run' ? (r.won ? 'Run won' : `Run, act ${r.act || 1}`) : 'Classic'} · ${r.cleared} cleared</span><b>${fmt(r.pts)}</b><span class="bar"><i style="width:${Math.round((r.pts / top) * 100)}%"></i></span></li>`).join('')
       : '<li class="empty">No runs yet. Play one and it shows up here.</li>';
     const rows = Games.list.map((G) => ({ G, s: stats[G.id] || { p: 0, w: 0 } })).filter((x) => x.s.p > 0)
       .sort((a, b) => a.s.w / a.s.p - b.s.w / b.s.p);
@@ -4888,7 +6560,11 @@ const UI = (() => {
     $('practice-grid').innerHTML = Games.list.map((G) => `<button class="tile" data-game="${G.id}"><b>${esc(verbOf(G, chooseMode(G)))}</b><span>${SENSOR_LABEL[chooseMode(G) === 'touch' ? 'touch' : G.sensor]}</span></button>`).join('');
     $('practice-grid').addEventListener('click', (e) => {
       const b = e.target.closest('[data-game]'); if (!b) return;
-      play({ id: b.dataset.game, level: practiceLevel });
+      play({ id: b.dataset.game, level: practiceLevel, remix: practiceRemix });
+    });
+    $('btn-prac-remix').addEventListener('click', (e) => {
+      practiceRemix = !practiceRemix; e.currentTarget.setAttribute('aria-pressed', String(practiceRemix));
+      e.currentTarget.textContent = `Remix: ${practiceRemix ? 'random' : 'off'}`;
     });
     document.querySelectorAll('.lvl').forEach((b) => b.addEventListener('click', () => {
       practiceLevel = +b.dataset.level;
@@ -4897,8 +6573,9 @@ const UI = (() => {
   }
 
   // The PLAY tap: everything that needs a user gesture happens here, before the first await.
-  async function play(practice = null) {
-    lastPractice = practice;
+  // what: 'classic' | 'daily' | { party: [names] } | 'run' (new adventure) | 'continue' (saved one) | { id, level, remix } (practice)
+  async function play(what = 'run') {
+    if (typeof what === 'object' && what) lastPractice = what;
     Sound.ensure();
     try { const de = document.documentElement; if (de.requestFullscreen && !document.fullscreenElement && !inFrame) de.requestFullscreen({ navigationUI: 'hide' }).then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('portrait').catch(() => {})).catch(() => {}); } catch (e) { /* optional */ }
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {}); } catch (e) { /* optional */ }
@@ -4908,13 +6585,127 @@ const UI = (() => {
     clearTimeout(permTimer);
     started = true; chips();
     show(null);
-    Engine.startRun(practice);
-    show(null);
+    if (what === 'run') RunMode.start();
+    else if (what === 'continue') RunMode.resume();
+    else if (what === 'classic') Engine.startClassic();
+    else if (what === 'daily') Daily.start();
+    else if (what && what.party) Party.start(what.party);
+    else Engine.startPractice(what);
+    if (Engine.state === 'inter' || Engine.state === 'game') show(null);
+  }
+  function titleButtons() {
+    const saved = RunMode.hasSave(), m = Meta.get();
+    $('run-line').textContent = saved ? 'Continue' : `${m.unlocked.filter((id) => Games.byId[id]).length}/${Games.regular.length} games`;
+    $('btn-newrun').hidden = !saved;
+    const rec = Daily.todayRecord(), st = Daily.streak();
+    $('btn-daily').classList.toggle('done', !!rec);
+    $('daily-line').textContent = rec ? `#${Daily.number()} · ${rec.cleared}/${rec.total}` : `#${Daily.number()}` + (st ? ` · ${st}-day streak` : ' · new');
+  }
+  function toTitle() { Engine.state = 'title'; best(); chips(); titleButtons(); show('title'); }
+
+  // Adventure: rest stop and end screen. Daily, Party and Awards screens follow.
+  function showRest() {
+    const e = Engine.run, full = e.lives >= e.maxLives;
+    $('btn-rest-battery').textContent = full ? (e.maxLives < 6 ? 'Add a battery slot' : 'All charged up') : 'Recharge: +1 battery';
+    $('btn-rest-battery').disabled = full && e.maxLives >= 6;
+    $('rest-status').textContent = `${e.lives} of ${e.maxLives} batteries`;
+    show('rest');
+  }
+  function showRunEnd(o) {
+    $('runend-head').textContent = o.won ? 'You beat Jolt!' : 'Run over';
+    $('runend-eyebrow').textContent = o.won ? 'All three acts cleared' : `Batteries flat in act ${o.act}`;
+    $('runend-score').textContent = fmt(o.points);
+    $('runend-sub').textContent = `${o.cleared} of ${o.played} cleared`;
+    $('runend-best').textContent = o.isBest ? 'New best!' : `Best: ${fmt(o.best)}`;
+    $('runend-log').innerHTML = o.log.map((x) => `<li class="${x.won ? '' : 'miss'}">${esc(x.verb)}</li>`).join('');
+    $('runend-unlocks').hidden = !o.fresh.length;
+    $('runend-new').innerHTML = o.fresh.map((id) => `<li>${esc(verbOf(Games.byId[id], 'sensor'))}</li>`).join('');
+    best(); show('runend');
+  }
+  function showDailyEnd(o) {
+    const rec = o.official || o.res;
+    $('daily-eyebrow').textContent = `Daily #${o.number}`;
+    $('daily-score').textContent = fmt(o.res.pts);
+    $('daily-sub').textContent = `${o.res.cleared} of ${o.res.total} cleared · ${o.streak}-day streak`;
+    $('daily-note').textContent = o.scored ? 'Same games for everyone today. New ones tomorrow.' : `Replay, not scored. Today's result: ${rec.cleared}/${rec.total}, ${fmt(rec.pts)} points.`;
+    $('daily-share').textContent = Daily.shareText(rec, o.number);
+    $('btn-daily-copy').textContent = 'Copy result';
+    best(); show('dailyend');
+  }
+
+  // Party: names (remembered on this phone), hand-off between turns, results.
+  let partyNames = [];
+  function renderNames() {
+    $('party-names').innerHTML = partyNames.map((n, i) => `<li><input id="pname-${i}" maxlength="14" value="${esc(n)}" aria-label="Player ${i + 1} name"><button data-rm="${i}" aria-label="Remove player ${i + 1}" ${partyNames.length <= 2 ? 'disabled' : ''}>✕</button></li>`).join('');
+    $('btn-party-add').hidden = partyNames.length >= 6;
+  }
+  function readNames() { partyNames = partyNames.map((n, i) => { const el = $(`pname-${i}`); return el ? el.value.trim() || `Player ${i + 1}` : n; }); }
+  function showPartySetup() {
+    const saved = U.store.get('partyNames', null);
+    partyNames = Array.isArray(saved) && saved.length >= 2 ? saved.slice(0, 6) : ['Player 1', 'Player 2'];
+    renderNames(); show('partysetup');
+  }
+  const bats = (p) => '▮'.repeat(Math.max(0, p.lives)) + '▯'.repeat(Math.max(0, PARTY.lives - p.lives));
+  function table(players, cur) {
+    return players.map((p, i) => `<li class="${i === cur ? 'now' : ''} ${p.out ? 'out' : ''}"><span>${esc(p.name)}</span><span class="bats" aria-label="${p.lives} batteries">${bats(p)}</span><b>${p.cleared}</b></li>`).join('');
+  }
+  function showHandoff(p, r) {
+    $('handoff-round').textContent = `Round ${r.round + 1} of ${PARTY.rounds}`;
+    $('handoff-name').textContent = p.name;
+    $('handoff-table').innerHTML = table(r.players, r.cur);
+    show('handoff');
+  }
+  function showPartyEnd(standings) {
+    const w = standings[0];
+    $('partyend-head').textContent = `${w.name} wins!`;
+    $('partyend-table').innerHTML = table(standings, 0);
+    show('partyend');
+  }
+
+  function renderAwards() {
+    const s = Achievements.state(), got = ACHIEVEMENTS.filter((a) => s.unlocked[a.id]).length;
+    $('awards-count').textContent = `${got} of ${ACHIEVEMENTS.length} earned`;
+    $('awards-grid').innerHTML = ACHIEVEMENTS.map((a) => {
+      const has = !!s.unlocked[a.id], p = Achievements.progress(a, s);
+      const bar = p && !has ? `<span class="prog"><i style="width:${Math.round((p.n / Math.max(1, p.of)) * 100)}%"></i></span><small>${p.n} of ${p.of}</small>` : '';
+      return `<li class="${has ? 'got' : ''}"><span class="glyph" aria-hidden="true">${esc(a.glyph)}</span><span><b>${esc(a.name)}</b><small>${esc(a.desc)}</small>${bar}</span></li>`;
+    }).join('');
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
   }
 
   function init() {
     document.body.appendChild(pauseBtn);
-    $('btn-play').addEventListener('click', () => play(null));
+    $('btn-play').addEventListener('click', () => play('classic'));
+    $('btn-daily').addEventListener('click', () => play('daily'));
+    $('btn-adventure').addEventListener('click', () => play(RunMode.hasSave() ? 'continue' : 'run'));
+    $('btn-newrun').addEventListener('click', () => { RunMode.clearSave(); play('run'); });
+    $('btn-rest-battery').addEventListener('click', () => RunMode.rest());
+    $('btn-daily-copy').addEventListener('click', () => {
+      const txt = $('daily-share').textContent, b = $('btn-daily-copy');
+      const done = () => { b.textContent = 'Copied!'; };
+      const fallback = () => { const r = document.createRange(); r.selectNodeContents($('daily-share')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = 'Selected: copy it'; };
+      try { navigator.clipboard.writeText(txt).then(done, fallback); } catch (e) { fallback(); }
+    });
+    $('btn-daily-again').addEventListener('click', () => play('daily'));
+    $('btn-daily-menu').addEventListener('click', toTitle);
+    $('btn-party').addEventListener('click', showPartySetup);
+    $('party-names').addEventListener('click', (e) => { const b = e.target.closest('[data-rm]'); if (!b || b.disabled) return; readNames(); partyNames.splice(+b.dataset.rm, 1); renderNames(); });
+    $('btn-party-add').addEventListener('click', () => { readNames(); if (partyNames.length < 6) partyNames.push(`Player ${partyNames.length + 1}`); renderNames(); });
+    $('btn-party-back').addEventListener('click', toTitle);
+    $('btn-party-go').addEventListener('click', () => { readNames(); play({ party: partyNames.slice() }); });
+    $('btn-handoff-go').addEventListener('click', () => Party.beginTurn());
+    $('btn-handoff-end').addEventListener('click', () => Party.end());
+    $('btn-partyend-again').addEventListener('click', () => play({ party: Party.r.players.map((p) => p.name) }));
+    $('btn-partyend-menu').addEventListener('click', toTitle);
+    $('btn-awards').addEventListener('click', () => { renderAwards(); show('awards'); });
+    $('btn-awards-back').addEventListener('click', toTitle);
+    $('btn-runend-again').addEventListener('click', () => play('run'));
+    $('btn-runend-menu').addEventListener('click', toTitle);
     $('btn-skip').addEventListener('click', () => { if (skipResolve) skipResolve(); });
     $('btn-practice').addEventListener('click', () => show('practice'));
     $('btn-practice-back').addEventListener('click', () => show('title'));
@@ -4933,13 +6724,13 @@ const UI = (() => {
     $('btn-buzz').addEventListener('click', () => { U.buzz([60, 60, 120]); $('btn-buzz').textContent = navigator.vibrate ? 'Buzzed (feel it?)' : 'No vibration on this browser'; });
     $('btn-again').addEventListener('click', () => play(lastPractice));
     $('btn-presult-back').addEventListener('click', () => { Hub.stopMedia(); Engine.state = 'title'; show('practice'); });
-    $('btn-replay').addEventListener('click', () => play(null));
-    $('btn-menu').addEventListener('click', () => { Engine.state = 'title'; best(); chips(); show('title'); });
+    $('btn-replay').addEventListener('click', () => play('classic'));
+    $('btn-menu').addEventListener('click', toTitle);
     pauseBtn.addEventListener('click', () => pause());
     $('btn-resume').addEventListener('click', () => resume());
-    $('btn-quit').addEventListener('click', () => { Engine.paused = null; Engine.quit(); best(); chips(); });
+    $('btn-quit').addEventListener('click', () => { Engine.paused = null; Engine.quit(); toTitle(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-    buildPractice(); chips(); best(); quietLabel(); hostNote();
+    buildPractice(); chips(); best(); quietLabel(); hostNote(); titleButtons();
     $('game-count').textContent = Games.list.length;
   }
 
@@ -4981,7 +6772,293 @@ const UI = (() => {
       row('Camera', `light ${(f.cam.lum * 100).toFixed(0)}% · move ${(f.cam.motion * 100).toFixed(0)}`, f.cam.lum, a.cam);
   }
 
-  return { init, show, play, practiceResult, showOver, meters, chips };
+  return { init, show, play, practiceResult, showOver, meters, chips, showRest, showRunEnd, showDailyEnd, showHandoff, showPartyEnd, toast, toTitle };
+})();
+
+/* ---- 85-map.js ---- */
+// Run mode overworld: each act's branching map (Slay-the-Spire structure, Super-Mario-World look).
+// RunMap.generate(act, rng) builds a 5-row map; RunMap.reachable(map, at) lists the next picks;
+// RunMap.render(el, view, onPick) draws it into an empty full-screen container. All CSS is injected once (rm- prefix).
+const RunMap = (() => {
+  const BOSS_ROW = 4;
+  const K = '#1B1530', PAPER = '#FFF8E8', SUN = '#FFD23F', POP = '#FF5FA2';
+  const AREA = ['', 'Sunny Meadow', 'Sunset Dunes', 'Neon Night'];
+  const LABEL = { stage: 'Stage', remix: 'Remix ×1.5', rest: 'Rest', shop: 'Shop', boss: 'Boss' };
+  const DESC = { stage: '5 microgames', remix: '5 games with twists, 1.5 times points', rest: 'recharge 1 battery', shop: 'spend coins on perks', boss: "the act's boss" };
+
+  // ---------- generation ----------
+  // Non-crossing edges between two rows of 2–3 nodes: a monotone staircase walk from (0,0) to (m-1,n-1)
+  // that never lets the column indexes drift more than 1 apart. Every node on both sides gets at least one edge.
+  function stairs(m, n, rng) {
+    let i = 0, j = 0; const out = [[0, 0]];
+    while (i < m - 1 || j < n - 1) {
+      const opts = [];
+      if (i < m - 1 && Math.abs(i + 1 - j) <= 1) opts.push([1, 0], [1, 0]); // single steps (weight 2) = more forks
+      if (j < n - 1 && Math.abs(i - j - 1) <= 1) opts.push([0, 1], [0, 1]);
+      if (i < m - 1 && j < n - 1) opts.push([1, 1]);
+      const [di, dj] = opts[Math.floor(rng() * opts.length)];
+      i += di; j += dj; out.push([i, j]);
+    }
+    return out;
+  }
+  function allPaths(map) {
+    const out = [];
+    const walk = (id, acc) => { const n = map.nodes[id]; acc = acc.concat(id); if (!n.next.length) out.push(acc); else n.next.forEach((x) => walk(x, acc)); };
+    map.rows[0].forEach((n) => walk(n.id, []));
+    return out;
+  }
+
+  function generate(act, rng) {
+    for (let tries = 0; ; tries++) {
+      // Rows 1–3 are 2 or 3 wide. After 30 misses row 2 is forced to 2 wide: its pair is always a valid rest/shop cut.
+      const sizes = [2, 0, 0, 0, 1].map((s, r) => s || (tries > 30 && r === 2 ? 2 : rng() < 0.6 ? 3 : 2));
+      const rows = sizes.map((n, r) => Array.from({ length: n }, (_, c) => ({ id: `a${act}r${r}c${c}`, type: 'stage', row: r, col: c, next: [] })));
+      for (let r = 0; r < BOSS_ROW - 1; r++) for (const [i, j] of stairs(rows[r].length, rows[r + 1].length, rng)) rows[r][i].next.push(rows[r + 1][j].id);
+      const boss = rows[BOSS_ROW][0]; boss.type = 'boss';
+      rows[BOSS_ROW - 1].forEach((n) => n.next.push(boss.id)); // the boss is the one exception to the adjacent-column rule
+      const nodes = {}; rows.flat().forEach((n) => { nodes[n.id] = n; });
+      const map = { act, rows, nodes };
+      // Rest + shop must be a 2-node cut: every row-0 → boss path passes one of them. Enumerate paths (≤54) and score pairs.
+      const paths = allPaths(map), mid = rows.slice(1, BOSS_ROW).flat(), cands = [];
+      for (let a = 0; a < mid.length; a++) for (let b = a + 1; b < mid.length; b++) {
+        const A = mid[a].id, B = mid[b].id;
+        if (!paths.every((p) => p.includes(A) || p.includes(B))) continue;
+        const split = paths.some((p) => p.includes(A) && !p.includes(B)) && paths.some((p) => p.includes(B) && !p.includes(A));
+        cands.push({ a: mid[a], b: mid[b], w: (mid[a].row !== mid[b].row ? 3 : 1.5) * (split ? 2 : 0.25) });
+      }
+      if (!cands.length) continue;
+      let t = rng() * cands.reduce((s, c) => s + c.w, 0), pick = cands[cands.length - 1];
+      for (const c of cands) { if ((t -= c.w) <= 0) { pick = c; break; } }
+      const [lo, hi] = pick.a.row <= pick.b.row ? [pick.a, pick.b] : [pick.b, pick.a];
+      const restLate = rng() < 0.7; // the campfire usually sits closer to the boss, the shop earlier
+      (restLate ? hi : lo).type = 'rest'; (restLate ? lo : hi).type = 'shop';
+      if (act > 1) {
+        const plain = mid.filter((n) => n.type === 'stage'), p = act === 2 ? 0.35 : 0.5;
+        plain.forEach((n) => { if (rng() < p) n.type = 'remix'; });
+        if (!plain.some((n) => n.type === 'remix')) plain[Math.floor(rng() * plain.length)].type = 'remix';
+      }
+      return map;
+    }
+  }
+
+  function reachable(map, at) {
+    if (at == null) return map.rows[0].map((n) => n.id);
+    const n = map.nodes[at]; return n ? n.next.slice() : [];
+  }
+
+  // ---------- art ----------
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const hash = (s) => [...s].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  const sw = (w) => `stroke="${K}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+  // Union outline: stroked circles first, then the same circles unstroked on top.
+  const blob = (cs, fill, w = 3.5) => `<g fill="${fill}" ${sw(w)}>${cs.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`
+    + `<g fill="${fill}">${cs.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>`;
+  const cloud = (x, y, s = 1) => blob([[x, y, 14 * s], [x + 16 * s, y - 8 * s, 17 * s], [x + 34 * s, y - 2 * s, 14 * s], [x + 18 * s, y + 6 * s, 12 * s]], PAPER);
+  const tree = (x, y) => `<rect x="${x - 4}" y="${y}" width="8" height="18" rx="3" fill="#8A5A3B" ${sw(3)}/>` + blob([[x, y - 6, 14], [x - 9, y + 2, 9], [x + 9, y + 2, 9]], '#3FA34D');
+  const hill = (x, y, w, h, fill) => `<path d="M${x - w} ${y}C${x - w} ${y - h * 1.33} ${x + w} ${y - h * 1.33} ${x + w} ${y}Z" fill="${fill}" ${sw(4)}/>`
+    + `<ellipse cx="${x - w * 0.22}" cy="${y - h * 0.62}" rx="2.6" ry="4.2" fill="${K}"/><ellipse cx="${x + w * 0.22}" cy="${y - h * 0.62}" rx="2.6" ry="4.2" fill="${K}"/>`;
+  const cactus = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})" fill="#3E9E5A" ${sw(3 / s)}><path d="M-12 -18v-10a5 5 0 0 1 10 0v6"/><path d="M12 -22v-8a5 5 0 0 0-10 0v6"/><rect x="-6" y="-46" width="12" height="46" rx="6"/></g>`;
+  const dune = (y, a, b, fill) => `<path d="M-20 ${y}C60 ${y - a} 140 ${y + b} 200 ${y - 4}S320 ${y - a} 380 ${y + 6}V800H-20Z" fill="${fill}" ${sw(4)}/>`;
+
+  function terrain(act) {
+    const vb = '<svg class="rm-terrain" viewBox="0 0 360 780" preserveAspectRatio="xMidYMax slice" aria-hidden="true">';
+    if (act === 2) {
+      return vb + `<defs><linearGradient id="rm-sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF6B6B"/><stop offset=".55" stop-color="#FF9A5C"/><stop offset="1" stop-color="#FFC56B"/></linearGradient></defs>
+        <rect width="360" height="780" fill="#F7CD7A"/><rect width="360" height="230" fill="url(#rm-sky2)"/>
+        <circle cx="262" cy="150" r="56" fill="#FFE27A" ${sw(4)}/>
+        ${cloud(30, 70, .8)}
+        <path d="M-10 230V150H34L48 128H112L124 230Z" fill="#C8613A" ${sw(4)}/><path d="M180 230L196 176H292L306 156H372V230Z" fill="#B4532F" ${sw(4)}/>
+        ${dune(232, 26, 18, '#F2BC62')}${dune(420, 40, 30, '#F7CD7A')}${dune(610, 30, 26, '#EDB25F')}
+        <g stroke="#DC9443" stroke-width="3" stroke-linecap="round" fill="none"><path d="M20 300q20-8 40 0M300 340q16-6 32 0M24 500q22-8 44 0M290 520q18-7 36 0M30 700q18-6 36 0M290 730q20-8 40 0"/></g>
+        ${cactus(30, 395, 1)}${cactus(332, 300, .8)}${cactus(328, 590, 1.1)}${cactus(26, 640, .85)}
+        <ellipse cx="320" cy="460" rx="14" ry="8" fill="#B8794A" ${sw(3)}/><ellipse cx="44" cy="540" rx="10" ry="6" fill="#B8794A" ${sw(3)}/></svg>`;
+    }
+    if (act === 3) {
+      let s = 7, stars = '';
+      const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 46; i++) stars += `<circle cx="${(r() * 360).toFixed(0)}" cy="${(r() * 560).toFixed(0)}" r="${(0.8 + r() * 1.6).toFixed(1)}" opacity="${(0.4 + r() * 0.6).toFixed(2)}"/>`;
+      let grid = '';
+      for (let i = 0; i < 7; i++) { const y = 640 + Math.pow(i / 6, 1.8) * 140; grid += `<path d="M-10 ${y.toFixed(0)}H370"/>`; }
+      for (let i = -6; i <= 6; i++) grid += `<path d="M${180 + i * 12} 640L${180 + i * 75} 790"/>`;
+      const spark = (x, y, c) => `<path d="M${x} ${y - 7}L${x + 2} ${y - 2}L${x + 7} ${y}L${x + 2} ${y + 2}L${x} ${y + 7}L${x - 2} ${y + 2}L${x - 7} ${y}L${x - 2} ${y - 2}Z" fill="${c}"/>`;
+      return vb + `<defs><linearGradient id="rm-sky3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0C0826"/><stop offset="1" stop-color="#2E1C70"/></linearGradient>
+        <mask id="rm-moon"><rect width="360" height="780" fill="#fff"/><circle cx="92" cy="92" r="27" fill="#000"/></mask></defs>
+        <rect width="360" height="780" fill="url(#rm-sky3)"/><g fill="${PAPER}">${stars}</g>
+        <circle cx="78" cy="100" r="30" fill="${SUN}" mask="url(#rm-moon)"/>
+        <path d="M-20 250C40 190 90 200 130 240C180 170 250 180 290 230C320 200 350 205 380 220V800H-20Z" fill="#22175A" stroke="${POP}" stroke-width="3"/>
+        <path d="M-50 640C-50 440 130 440 130 640ZM236 640C236 470 400 470 400 640Z" fill="#1A1148" stroke="#4FE3FF" stroke-width="3"/>
+        <rect y="640" width="360" height="140" fill="#1A0F45"/><g stroke="${POP}" stroke-width="2" opacity=".55" fill="none">${grid}</g>
+        <path d="M-10 640H370" stroke="#4FE3FF" stroke-width="3"/>
+        ${spark(330, 120, '#4FE3FF')}${spark(28, 330, POP)}${spark(338, 380, SUN)}${spark(24, 560, '#4FE3FF')}${spark(320, 600, POP)}</svg>`;
+    }
+    return vb + `<rect width="360" height="780" fill="#74CF63"/><rect width="360" height="200" fill="#9BE2FF"/>
+      ${cloud(26, 70)}${cloud(250, 52, .85)}${cloud(150, 110, .55)}
+      <path d="M-20 220C20 140 90 140 130 200C170 150 230 140 270 196C300 160 345 158 380 186V800H-20Z" fill="#5CC25A" ${sw(4)}/>
+      <ellipse cx="70" cy="330" rx="110" ry="46" fill="#86DB72"/><ellipse cx="300" cy="540" rx="110" ry="60" fill="#86DB72"/>
+      ${hill(36, 470, 34, 42, '#4DB55A')}${hill(330, 640, 36, 46, '#4DB55A')}${hill(316, 262, 26, 30, '#86DB72')}
+      ${tree(326, 400)}${tree(30, 600)}${tree(36, 260)}${tree(318, 730)}
+      <ellipse cx="44" cy="735" rx="48" ry="20" fill="#5EC8F2" ${sw(4)}/><path d="M24 730q10-6 20 0" stroke="${PAPER}" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <g fill="${PAPER}" ${sw(1.5)}><circle cx="300" cy="320" r="3.5"/><circle cx="60" cy="400" r="3.5"/><circle cx="340" cy="500" r="3.5"/><circle cx="20" cy="520" r="3.5"/></g>
+      <g fill="${POP}" ${sw(1.5)}><circle cx="312" cy="330" r="3.5"/><circle cx="48" cy="410" r="3.5"/><circle cx="96" cy="690" r="3.5"/></g></svg>`;
+  }
+
+  const ICON = {
+    stage: `<path d="M18 3L6 18h8l-3 11 13-16h-8l3-10z" fill="${SUN}" ${sw(2.5)}/>`,
+    remix: `<g transform="rotate(-14 16 16)"><rect x="6" y="6" width="20" height="20" rx="5" fill="${PAPER}" ${sw(2.5)}/><g fill="${K}"><circle cx="11.5" cy="11.5" r="2.3"/><circle cx="16" cy="16" r="2.3"/><circle cx="20.5" cy="20.5" r="2.3"/></g></g>`,
+    rest: `<rect x="3" y="9" width="23" height="14" rx="3.5" fill="${PAPER}" ${sw(2.5)}/><rect x="26" y="12.5" width="3.5" height="7" rx="1.2" fill="${K}"/><path d="M14.5 12v8M10.5 16h8" ${sw(3)}/>`,
+    shop: `<circle cx="16" cy="16" r="11.5" fill="${SUN}" ${sw(2.5)}/><circle cx="16" cy="16" r="7.5" fill="none" stroke="#C99A12" stroke-width="2"/><path d="M16 11.5v9" ${sw(3)}/>`,
+    boss: `<path d="M16 6V3" ${sw(2.5)}/><circle cx="16" cy="3" r="2" fill="${SUN}" ${sw(1.5)}/><path d="M6 10q0-4 4-4h12q4 0 4 4v9q0 3-3 3h-1v5H10v-5H9q-3 0-3-3z" fill="${POP}" ${sw(2.5)}/>`
+      + `<rect x="9.5" y="11" width="5" height="5" rx="1" fill="${SUN}" ${sw(1.8)}/><rect x="17.5" y="11" width="5" height="5" rx="1" fill="${SUN}" ${sw(1.8)}/><path d="M13 22v5M16 22v5M19 22v5" ${sw(2)}/>`,
+  };
+  const svg = (vb, body, cls = '') => `<svg ${cls ? `class="${cls}" ` : ''}viewBox="${vb}" aria-hidden="true">${body}</svg>`;
+  const CROWN = svg('0 0 40 22', `<path d="M4 19L2 5l10 7 8-10 8 10 10-7-2 14z" fill="${SUN}" ${sw(3)}/><circle cx="20" cy="13" r="2.5" fill="${POP}"/>`, 'rm-crown');
+  const TICK = `<span class="rm-tick">${svg('0 0 22 22', `<path d="M5 11.5l4 4 8-8.5" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`)}</span>`;
+  const ME = svg('0 0 30 42', `<ellipse cx="15" cy="39" rx="10" ry="2.6" fill="rgba(27,21,48,.4)"/><g class="rm-bob"><rect x="10.5" y="1.5" width="9" height="5" rx="1.8" fill="${K}"/>`
+    + `<rect x="4" y="5" width="22" height="30" rx="7" fill="${SUN}" ${sw(3)}/><ellipse cx="11" cy="16" rx="2.3" ry="3.1" fill="${K}"/><ellipse cx="19" cy="16" rx="2.3" ry="3.1" fill="${K}"/>`
+    + `<circle cx="11.8" cy="14.8" r=".9" fill="#fff"/><circle cx="19.8" cy="14.8" r=".9" fill="#fff"/><circle cx="8" cy="22" r="2" fill="${POP}"/><circle cx="22" cy="22" r="2" fill="${POP}"/>`
+    + `<path d="M11.5 23q3.5 3.2 7 0" fill="none" ${sw(2)}/></g>`, 'rm-me-art');
+  const BAT = (on) => svg('0 0 14 24', `<rect x="4" y="0.8" width="6" height="3.2" rx="1" fill="${K}"/><rect x="1.3" y="3.3" width="11.4" height="19.4" rx="3" fill="${on ? SUN : '#E6DCC6'}" ${sw(2.4)}/>`
+    + (on ? `<path d="M7.8 7L4.8 13.5h3l-1 4.5 3.5-6h-3l1-5z" fill="${K}"/>` : ''), 'rm-bat');
+  const COIN = svg('0 0 20 20', `<circle cx="10" cy="10" r="8" fill="${SUN}" ${sw(2.2)}/><path d="M10 6.5v7" ${sw(2.2)}/>`);
+  const STAR = svg('0 0 20 20', `<path d="M10 1.8l2.5 5.3 5.7.7-4.2 4 1.1 5.7L10 14.7l-5.1 2.8L6 11.8l-4.2-4 5.7-.7z" fill="${POP}" ${sw(2)}/>`);
+
+  // ---------- styles (injected once) ----------
+  const CSS = `
+.rm-root{position:relative;width:100%;height:100%;overflow-x:hidden;overflow-y:auto;display:flex;flex-direction:column;align-items:center;background:var(--shell-deep,#16238F);color:${K};font-family:var(--body,"Rubik",system-ui,sans-serif);font-weight:500;touch-action:pan-y;box-sizing:border-box;text-align:left}
+.rm-root *{box-sizing:border-box}
+.rm-col{position:relative;flex:1 0 auto;width:100%;max-width:460px;display:flex;flex-direction:column;gap:10px;overflow:hidden;padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:600px){.rm-root{padding:24px}.rm-col{border:4px solid ${K};border-radius:30px;box-shadow:0 8px 0 ${K};padding:16px 18px 18px}}
+.rm-terrain{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+.rm-col>:not(.rm-terrain){position:relative;z-index:1}
+.rm-card{background:${PAPER};border:3px solid ${K};border-radius:18px;box-shadow:0 4px 0 ${K}}
+.rm-head{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 10px;padding:8px 12px 9px}
+.rm-root .rm-title{font-family:var(--display,"Dela Gothic One",sans-serif);font-weight:400;font-size:25px;line-height:1;margin:0;color:${K};letter-spacing:.01em}
+.rm-title small{font-size:15px;color:#6B5F86}
+.rm-area{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6B5F86}
+.rm-bats{display:flex;gap:3px;justify-content:flex-end;flex-wrap:wrap}.rm-bat{width:13px;height:22px}
+.rm-stats{display:flex;gap:12px;justify-content:flex-end;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.rm-stats span{display:inline-flex;align-items:center;gap:4px}.rm-stats svg{width:17px;height:17px}.rm-stats small{font-size:11px;color:#6B5F86}
+.rm-hint{align-self:center;font-family:var(--display,"Dela Gothic One",sans-serif);font-size:13px;color:${PAPER};background:rgba(27,21,48,.78);padding:5px 14px 6px;border-radius:999px;letter-spacing:.02em}
+.rm-map{flex:1 1 auto;min-height:440px}
+.rm-paths{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.rm-paths path{fill:none;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-dasharray:0 13}
+.rm-paths .k{stroke:${K};stroke-width:11}.rm-paths .d{stroke:var(--rm-dot);stroke-width:5.5}
+.rm-e.dim{opacity:.32}.rm-e.done .d{stroke:${SUN}}.rm-e.open .d{stroke:var(--rm-glow)}
+.rm-e.open path{animation:rm-march .7s linear infinite}
+@keyframes rm-march{to{stroke-dashoffset:-13}}
+.rm-start{position:absolute;transform:translate(-50%,-50%);width:78px;height:26px;border-radius:50%;background:${SUN};border:3px solid ${K};box-shadow:0 4px 0 ${K};display:grid;place-items:center;font-family:var(--display,"Dela Gothic One",sans-serif);font-size:10px;letter-spacing:.08em;color:${K}}
+.rm-node{position:absolute;--s:56px;transform:translate(-50%,calc(var(--s) / -2));display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;padding:0;margin:0;color:${K};cursor:default;font:inherit;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.rm-badge{position:relative;width:var(--s);height:var(--s);border-radius:50%;border:4px solid ${K};background:var(--c);display:grid;place-items:center;box-shadow:inset 0 -5px 0 rgba(27,21,48,.25),inset 0 3px 0 rgba(255,255,255,.45),0 5px 0 ${K}}
+.rm-badge>svg{width:60%;height:60%;overflow:visible}
+.rm-label{font-family:var(--display,"Dela Gothic One",sans-serif);font-size:11px;line-height:1;white-space:nowrap;background:${PAPER};border:2.5px solid ${K};border-radius:999px;padding:3px 7px 4px;box-shadow:0 2px 0 ${K}}
+.rm-t-stage{--c:#2438D6}.rm-t-remix{--c:${POP}}.rm-t-rest{--c:#3DCB8A}.rm-t-shop{--c:#FF9A3C}
+.rm-t-boss{--c:${K};--s:74px}.rm-t-boss .rm-badge{box-shadow:inset 0 0 0 4px ${POP},inset 0 -8px 0 rgba(255,95,162,.25),0 6px 0 ${K}}.rm-t-boss .rm-label{background:${POP};color:${PAPER};font-size:13px}
+.rm-crown{position:absolute;width:38px;height:21px;left:50%;top:-20px;transform:translateX(-50%) rotate(-6deg)}
+.rm-tick{position:absolute;top:-7px;right:-7px;width:23px;height:23px;border-radius:50%;background:#3DCB8A;border:3px solid ${K};display:grid;place-items:center}.rm-tick svg{width:15px;height:15px}
+.rm-node.go{cursor:pointer}.rm-node.go .rm-label{background:${SUN};color:${K}}
+.rm-node.go .rm-badge{animation:rm-pulse 1.1s ease-in-out infinite}
+.rm-node.go .rm-badge::after{content:"";position:absolute;inset:-11px;border-radius:50%;border:3.5px solid var(--rm-glow);animation:rm-ring 1.1s ease-out infinite;pointer-events:none}
+.rm-node.go:active .rm-badge,.rm-node.chosen .rm-badge{animation:none;transform:translateY(3px) scale(.95)}
+.rm-root.rm-locked .rm-node.go:not(.chosen){opacity:.6}.rm-root.rm-locked .rm-node .rm-badge::after{animation:none;opacity:0}
+@keyframes rm-pulse{50%{transform:scale(1.09)}}
+@keyframes rm-ring{0%{transform:scale(.86);opacity:.95}100%{transform:scale(1.32);opacity:0}}
+.rm-node.done .rm-badge{filter:saturate(.35) brightness(.85)}.rm-node.done .rm-label{background:#E6DCC6}
+.rm-node.ahead .rm-badge{filter:saturate(.85)}
+.rm-node.gone{filter:grayscale(1) contrast(.45) brightness(1.05)}.rm-a3 .rm-node.gone{filter:grayscale(1) contrast(.5) brightness(.75)}
+.rm-me{position:absolute;width:30px;height:42px;transform:translate(-50%,-100%);pointer-events:none;z-index:3}.rm-me svg{width:100%;height:100%;overflow:visible}
+.rm-bob{animation:rm-bob .9s ease-in-out infinite}@keyframes rm-bob{50%{transform:translateY(-3px)}}
+.rm-perks{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px}
+.rm-perks b{font-family:var(--display,"Dela Gothic One",sans-serif);font-weight:400;font-size:11px;letter-spacing:.08em;flex:0 0 auto}
+.rm-perk-list{display:flex;gap:6px;overflow-x:auto;min-width:0;flex:1;scrollbar-width:none;touch-action:pan-x}.rm-perk-list::-webkit-scrollbar{display:none}
+.rm-perk{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;padding:2px 10px 2px 2px;border-radius:999px;background:#FFE9A8;border:2px solid ${K};white-space:nowrap}
+.rm-perk i{font-style:normal;width:22px;height:22px;border-radius:50%;background:${POP};color:${PAPER};border:2px solid ${K};display:grid;place-items:center;font-size:12px;line-height:1}.rm-perk i svg{width:14px;height:14px}
+.rm-a1{--rm-dot:${PAPER};--rm-glow:${PAPER}}.rm-a2{--rm-dot:${PAPER};--rm-glow:${PAPER}}.rm-a3{--rm-dot:#B9F3FF;--rm-glow:#4FE3FF}
+@media (prefers-reduced-motion:reduce){.rm-root *,.rm-root *::after{animation:none!important}.rm-node.go .rm-badge::after{opacity:1;inset:-8px}}`;
+  function injectCss() {
+    if (document.getElementById('rm-style')) return;
+    const st = document.createElement('style'); st.id = 'rm-style'; st.textContent = CSS; document.head.appendChild(st);
+  }
+
+  // ---------- render ----------
+  // Node centres in % of the map box. Rows climb from y=80 (row 0) to y=13 (boss); the START pad sits at y=95.
+  function layout(map) {
+    const pos = { start: { x: 50, y: 95 } };
+    map.rows.forEach((row, r) => row.forEach((n, c) => {
+      const xs = row.length === 3 ? [19, 50, 81] : row.length === 2 ? [31, 69] : [50], h = hash(n.id);
+      const jx = row.length === 1 ? 0 : ((h & 15) - 7.5) * 0.55, jy = r === BOSS_ROW ? 0 : (((h >> 4) & 15) - 7.5) * 0.3;
+      pos[n.id] = { x: xs[c] + jx, y: 80 - r * 16.75 + jy };
+    }));
+    return pos;
+  }
+
+  function render(el, view, onPick) {
+    injectCss();
+    const map = view.map, act = view.act || map.act, at = view.at == null ? null : view.at;
+    const visited = new Set(view.visited || []), reach = new Set(reachable(map, at));
+    const cur = at == null ? 'start' : at, pos = layout(map);
+    const future = new Set(), grow = (id) => { for (const x of (id === 'start' ? map.rows[0].map((n) => n.id) : map.nodes[id].next)) if (!future.has(x)) { future.add(x); grow(x); } };
+    grow(cur);
+
+    // Paths: S-curves with vertical tangents, ink dots under paper dots (an outlined dotted trail).
+    const edges = [];
+    map.rows[0].forEach((n) => edges.push(['start', n.id]));
+    Object.values(map.nodes).forEach((n) => n.next.forEach((x) => edges.push([n.id, x])));
+    const trail = edges.map(([a, b]) => {
+      const p = pos[a], q = pos[b], dy = p.y - q.y;
+      const done = (a === 'start' || visited.has(a)) && visited.has(b);
+      const cls = a === cur && reach.has(b) ? 'open' : (a === cur || future.has(a)) && future.has(b) ? '' : done ? 'done' : 'dim';
+      const d = `M${p.x} ${p.y}C${p.x} ${p.y - dy * 0.5} ${q.x} ${q.y + dy * 0.5} ${q.x} ${q.y}`;
+      return `<g class="rm-e ${cls}"><path class="k" d="${d}"/><path class="d" d="${d}"/></g>`;
+    }).join('');
+
+    const nodesHtml = Object.values(map.nodes).map((n) => {
+      const st = n.id === at ? 'here' : visited.has(n.id) ? 'done' : reach.has(n.id) ? 'go' : future.has(n.id) ? 'ahead' : 'gone';
+      const note = { here: 'you are here', done: 'cleared', go: 'tap to go', ahead: 'further ahead', gone: 'out of reach' }[st];
+      const p = pos[n.id];
+      return `<button type="button" class="rm-node rm-t-${n.type} ${st}" data-id="${n.id}" style="left:${p.x.toFixed(2)}%;top:${p.y.toFixed(2)}%"`
+        + ` aria-label="${esc(`${LABEL[n.type]}: ${DESC[n.type]}, ${note}`)}"${st === 'go' ? '' : ' disabled'}>`
+        + `<span class="rm-badge">${n.type === 'boss' ? CROWN : ''}${svg('0 0 32 32', ICON[n.type])}${visited.has(n.id) ? TICK : ''}</span>`
+        + `<span class="rm-label">${LABEL[n.type]}</span></button>`;
+    }).join('');
+
+    const mp = pos[cur];
+    const meStyle = at == null ? `left:${mp.x}%;top:calc(${mp.y}% - 4px)` : `left:calc(${mp.x.toFixed(2)}% - 42px);top:calc(${mp.y.toFixed(2)}% + 24px)`;
+    const lives = Math.max(0, view.lives | 0), maxLives = Math.max(lives, view.maxLives | 0);
+    const fmt = (v) => Number(v || 0).toLocaleString('en-US');
+    const nextTypes = [...reach].map((id) => map.nodes[id].type);
+    const hint = at == null ? 'Choose your path' : nextTypes.length === 1 && nextTypes[0] === 'boss' ? 'Boss ahead!' : nextTypes.length ? 'Pick your next stop' : '';
+    const perks = view.perks || [];
+    const glyph = (g) => (/^\s*<svg[\s>]/i.test(String(g || '')) ? String(g) : esc(g || '★'));
+
+    el.innerHTML = `<div class="rm-root rm-a${U.clamp(act | 0, 1, 3)}" role="region" aria-label="Act ${act} map">
+      <div class="rm-col">${terrain(U.clamp(act | 0, 1, 3))}
+        <header class="rm-card rm-head">
+          <h2 class="rm-title">ACT ${act} <small>of ${view.acts || 3}</small></h2>
+          <div class="rm-bats" role="img" aria-label="${lives} of ${maxLives} batteries">${Array.from({ length: maxLives }, (_, i) => BAT(i < lives)).join('')}</div>
+          <div class="rm-area">${AREA[U.clamp(act | 0, 1, 3)]}</div>
+          <div class="rm-stats">${view.coins == null ? '' : `<span aria-label="${fmt(view.coins)} coins">${COIN}${fmt(view.coins)}</span>`}<span aria-label="${fmt(view.points)} points">${STAR}${fmt(view.points)}<small>pts</small></span></div>
+        </header>
+        ${hint ? `<div class="rm-hint" aria-live="polite">${hint}</div>` : ''}
+        <div class="rm-map">
+          <svg class="rm-paths" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${trail}</svg>
+          <span class="rm-start" style="left:${pos.start.x}%;top:${pos.start.y}%" aria-hidden="true">START</span>
+          ${nodesHtml}
+          <span class="rm-me" style="${meStyle}" aria-hidden="true">${ME}</span>
+        </div>
+        ${perks.length ? `<div class="rm-card rm-perks"><b>PERKS</b><div class="rm-perk-list">${perks.map((k) => `<span class="rm-perk"><i>${glyph(k.glyph)}</i>${esc(k.name)}</span>`).join('')}</div></div>` : ''}
+      </div></div>`;
+
+    const root = el.firstElementChild;
+    let picked = false;
+    root.addEventListener('click', (e) => {
+      const b = e.target.closest('.rm-node.go'); if (!b || picked) return;
+      picked = true; b.classList.add('chosen'); root.classList.add('rm-locked');
+      root.querySelectorAll('.rm-node').forEach((x) => { x.disabled = true; });
+      if (onPick) onPick(b.dataset.id);
+    });
+  }
+
+  return { generate, reachable, render };
 })();
 
 /* ---- 90-main.js ---- */
@@ -5009,7 +7086,11 @@ const UI = (() => {
     g.fillRect(0, 0, W, H);
     g.setTransform(DPR * S, 0, 0, DPR * S, DPR * OX, DPR * OY);
     const st = E.state === 'paused' ? E.paused : E.state;
-    if (st === 'game') { const B = E.beat(); E.inst.draw(g, B); drawGameHud(g, E.G, E.inst, B, E.mode, E.flash, time); }
+    if (st === 'game') {
+      const B = E.beat();
+      Remixes.draw(E.remix, g, E.ph.t, () => E.inst.draw(g, B), E.lastTouch); // the game, under its remix (if any)
+      drawGameHud(g, E.G, E.inst, B, E.mode, E.flash, time, E.remix);
+    }
     else if (st === 'inter') drawInter(g, E.ph, E.run, time);
     else drawAttract(g, time);
   }
@@ -5024,14 +7105,38 @@ const UI = (() => {
     requestAnimationFrame(loop);
   }
 
-  window.Jolt = { Engine, Hub, Games, Sound, CFG, TUNE, FLAGS, UI, VIEW };
+  window.Jolt = { Engine, Hub, Games, Sound, CFG, TUNE, FLAGS, UI, VIEW, Remixes, RunMode, Meta, Daily, Party, Achievements };
   UI.init();
 
   if (FLAGS.shot) {
     // Screenshot entry: run one game (bots driving) up to beat `at`, then freeze the frame.
     UI.show(null);
     const target = FLAGS.shot;
-    if (target === 'over' || target === 'history') {
+    if (['map', 'rest', 'runend'].includes(target)) {
+      // Adventure screens with sample state (screenshot only).
+      RunMode.start();
+      Object.assign(Engine.run, { points: 4280, lives: 3 });
+      if (target === 'map') {
+        const ids = RunMap.reachable(RunMode.r.map, null); RunMode.r.at = ids[0]; RunMode.r.visited = [ids[0]];
+        RunMode.showMap();
+      } else if (target === 'rest') { Engine.state = 'rest'; UI.showRest(); }
+      else UI.showRunEnd({ won: false, act: 2, points: 4280, cleared: 23, played: 27, log: Games.regular.slice(0, 14).map((G, i) => ({ verb: G.verb, won: i % 6 !== 4 })), fresh: Games.regular.slice(12, 15).map((G) => G.id), best: 6120, isBest: false });
+      frozen = true;
+    } else if (target === 'dailyend') {
+      const res = { pts: 3140, cleared: 12, total: 16, marks: [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1], at: Date.now() };
+      UI.showDailyEnd({ res, scored: true, official: res, number: Daily.number(), streak: 3 });
+      frozen = true;
+    } else if (['handoff', 'partyend', 'partysetup'].includes(target)) {
+      Engine.newSession('party', { players: [{ name: 'Ana', lives: 2, cleared: 7, points: 0, out: false }, { name: 'Ben', lives: 3, cleared: 8, points: 0, out: false }, { name: 'Cy', lives: 0, cleared: 3, points: 0, out: true }], cur: 1, round: 2, turnGames: 0 });
+      if (target === 'handoff') UI.showHandoff(Party.current(), Engine.run);
+      else if (target === 'partyend') UI.showPartyEnd(Party.standings());
+      else document.getElementById('btn-party').click();
+      frozen = true;
+    } else if (target === 'awards') {
+      U.store.set('ach', { unlocked: { first: 1, streak10: 1, boss: 1, remix: 1, daily1: 1 }, cleared: Object.fromEntries(Games.regular.slice(0, 15).map((G) => [G.id, 1])), gold: {}, remixes: { mirror: 1, dark: 1 }, real: {} });
+      document.getElementById('btn-awards').click();
+      frozen = true;
+    } else if (target === 'over' || target === 'history') {
       // Sample data for screenshots only (?shot= can't be passed through an Artifact link).
       const ids = Games.list.map((G) => G.id);
       const runs = [[2340, 14, 2], [1180, 8, 1], [3120, 17, 2], [640, 5, 1], [1510, 10, 2]];
@@ -5048,7 +7153,7 @@ const UI = (() => {
       frozen = true;
     }
     else if (Games.byId[target]) {
-      Engine.startRun({ id: target, level: FLAGS.level });
+      Engine.startPractice({ id: target, level: FLAGS.level, remixId: FLAGS.remix });
       for (let i = 0; i < 2000 && !(Engine.state === 'game' && Engine.beat().beat >= FLAGS.at); i++) Engine.tick(1 / 60, performance.now());
       frozen = true;
     }
